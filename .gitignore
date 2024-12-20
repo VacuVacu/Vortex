@@ -1,0 +1,83 @@
+# Ignore the Intermediate and Saved directories
+Intermediate/
+Saved/
+
+# Ignore the DerivedDataCache directory
+DerivedDataCache/
+
+# Ignore the Binaries directory
+Binaries/
+
+# Ignore the Build directory
+Build/
+
+# Ignore the .vs directory (Visual Studio temporary files)
+.vs/
+
+# Ignore the .vscode directory (Visual Studio Code temporary files)
+.vscode/
+
+# Ignore project specific files
+*.opensdf
+*.sdf
+*.suo
+*.user
+*.userosscache
+*.usertask
+*.VC.db
+*.VC.VC.opendb
+*.VC.opendb
+
+# Ignore Windows Explorer thumbnail cache files
+Thumbs.db
+
+# Ignore hidden system files
+.DS_Store
+
+# Ignore log files
+*.log
+
+# Ignore crash reports
+*.dmp
+
+# Ignore auto-generated assets
+*.generated.*
+
+# Ignore the config directory only if you want to exclude local settings
+# Config/
+
+# Ignore Mac specific files
+.DS_Store
+.DS_Store?
+
+# Ignore Linux specific files
+*~
+
+# Ignore build output
+*.o
+*.a
+*.so
+*.dylib
+
+# Ignore Unreal Engine specific files
+*.xcodeproj
+*.xcworkspace
+*.xcsettings
+*.xcuserstate
+*.xccheckout
+
+# Ignore compiled Python files
+*.pyc
+*.pyo
+__pycache__/
+
+# Ignore Rider IDE files
+.idea/
+*.sln.iml
+.idea_modules/
+.idea_working_sets.xml
+
+# Ignore JetBrains specific files
+*.dotCover
+*.dotSettings
+*.sln.DotSettings
