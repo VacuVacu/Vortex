@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "CombatComponent.generated.h"
 
+#define TRACE_LENGTH 80000.f
 
 class AWeapon;
 class AVortexCharacter;
@@ -36,6 +37,16 @@ protected:
 
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
+
+	void Fire(bool bPressed);
+
+	UFUNCTION(Server, Reliable)
+	void ServerFire(const FVector_NetQuantize& TraceHitTarget);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiCastFire(const FVector_NetQuantize& TraceHitTarget);
+
+	void TraceUnderCrossHairs(FHitResult& TraceHitResult);
 	
 private:
 	AVortexCharacter* Character;
@@ -51,8 +62,11 @@ private:
 	
 	UPROPERTY(EditAnywhere)
 	float AimWalkSpeed;
+
+	bool bFireButtonPressed;
 	
 public:	
 	
 		
 };
+

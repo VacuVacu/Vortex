@@ -16,6 +16,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Vortex/VortexComponents/CombatComponent.h"
 #include "Vortex/Weapon/Weapon.h"
+#include "VortexAnimInstance.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
 
@@ -61,6 +62,18 @@ void AVortexCharacter::PostInitializeComponents() {
 	}
 }
 
+void AVortexCharacter::PlayFireMontage(bool bAiming) {
+	if (Combat == nullptr || Combat->EquippedWeapon == nullptr)
+		return;
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && FireWeaponMontage) {
+		AnimInstance->Montage_Play(FireWeaponMontage);
+		FName SectionName;
+		SectionName = bAiming ? FName("RifleAim") : FName("RifleHip");
+		AnimInstance->Montage_JumpToSection(SectionName);
+	}
+}
+
 void AVortexCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(AVortexCharacter, OverlappingWeapon, COND_OwnerOnly);
@@ -99,13 +112,15 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AVortexCharacter::Move);
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AVortexCharacter::Look);
-		//Equip
+		// Equip
 		EnhancedInputComponent->BindAction(EquipAction, ETriggerEvent::Started, this, &AVortexCharacter::Equip);
-		//Crouch
+		// Crouch
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AVortexCharacter::Crouching);
-		//Aim
+		// Aim
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &AVortexCharacter::Aim);
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &AVortexCharacter::Unaim);
+		// Fire
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AVortexCharacter::Fire);
 	}
 	else
 	{
@@ -169,7 +184,6 @@ void AVortexCharacter::Equip(const FInputActionValue& Value) {
 			ServerEquipButtonPressed();
 			UE_LOG(LogVortexCharacter, Error, TEXT("EquipWeapon %p"), OverlappingWeapon);
 		}
-
 	}
 }
 
@@ -196,6 +210,13 @@ void AVortexCharacter::Aim() {
 void AVortexCharacter::Unaim() {
 	if (Combat) {
 		Combat->SetAiming(false);
+	}
+}
+
+void AVortexCharacter::Fire(const FInputActionValue& Value) {
+	bool bFire = Value.Get<bool>();
+	if (Combat) {
+		Combat->Fire(bFire);
 	}
 }
 
@@ -235,7 +256,6 @@ void AVortexCharacter::AimOffset(float DeltaTime) {
 }
 
 void AVortexCharacter::TurnInPlace(float DeltaTime) {
-	// UE_LOG(LogVortexCharacter, Warning, TEXT("AO_Yaw: %f"), AO_Yaw);
 	if (AO_Yaw > 90.f) {
 		TurningInPlace = ETurningInPlace::ETIP_Right;
 	}else if (AO_Yaw < -90.f) {

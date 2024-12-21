@@ -35,6 +35,8 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	virtual void PostInitializeComponents() override;
+
+	void PlayFireMontage(bool bAiming);
 	
 protected:
 	// Called when the game starts or when spawned
@@ -55,6 +57,8 @@ protected:
 	void Unaim();
 
 	void AimOffset(float DeltaTime);
+
+	void Fire(const FInputActionValue& Value);
 	
 private:
 	/** MappingContext */
@@ -81,6 +85,9 @@ private:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* AimAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* FireAction;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
@@ -97,11 +104,14 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	UCombatComponent* Combat;
 
+	UPROPERTY(EditAnywhere, Category="Combat")
+	UAnimMontage* FireWeaponMontage;
+
 	float AO_Yaw;
 	float AO_Pitch;
 	float InterpAO_Yaw;
 	FRotator StartingAimRotation;
-
+	
 	ETurningInPlace TurningInPlace;
 	void TurnInPlace(float DeltaTime);
 	
