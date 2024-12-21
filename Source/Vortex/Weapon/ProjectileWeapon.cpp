@@ -22,7 +22,8 @@ void AProjectileWeapon::Fire(const FVector& HitTarget) {
 			SpawnParameters.Instigator = InstigatorPawn;
 			UWorld* World = GetWorld();
 			if (World) {
-				World->SpawnActor<AProjectile>(ProjectileClass, SocketTransform.GetLocation(), TargetRotation, SpawnParameters);
+				AProjectile* Bullet = World->SpawnActor<AProjectile>(ProjectileClass, SocketTransform.GetLocation(), TargetRotation, SpawnParameters);
+				UE_LOG(LogTemp, Warning, TEXT("Bullet replicate %d"), Bullet->GetIsReplicated());
 			}
 		}
 	}
