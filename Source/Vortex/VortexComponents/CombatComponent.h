@@ -9,6 +9,8 @@
 
 #define TRACE_LENGTH 80000.f
 
+class AVortexHUD;
+class AVortexPlayerController;
 class AWeapon;
 class AVortexCharacter;
 
@@ -47,9 +49,13 @@ protected:
 	void MultiCastFire(const FVector_NetQuantize& TraceHitTarget);
 
 	void TraceUnderCrossHairs(FHitResult& TraceHitResult);
+
+	void SetHUDCorsshairs(float DeltaTime);
 	
 private:
 	AVortexCharacter* Character;
+	AVortexPlayerController *Controller;
+	AVortexHUD* HUD;
 
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeapon)
 	AWeapon* EquippedWeapon;
@@ -64,6 +70,10 @@ private:
 	float AimWalkSpeed;
 
 	bool bFireButtonPressed;
+
+	float CrosshairVelocityFactor;
+
+	float CrosshairInAirFactor;
 	
 public:	
 	

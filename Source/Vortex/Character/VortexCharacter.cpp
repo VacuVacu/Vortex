@@ -179,10 +179,8 @@ void AVortexCharacter::Equip(const FInputActionValue& Value) {
 		if (HasAuthority()) {
 			Combat->EquipWeapon(OverlappingWeapon);
 		}else {
-			// TODO this call need?
-			//Combat->EquipWeapon(OverlappingWeapon);
 			ServerEquipButtonPressed();
-			UE_LOG(LogVortexCharacter, Error, TEXT("EquipWeapon %p"), OverlappingWeapon);
+			// UE_LOG(LogVortexCharacter, Error, TEXT("EquipWeapon %p"), OverlappingWeapon);
 		}
 	}
 }

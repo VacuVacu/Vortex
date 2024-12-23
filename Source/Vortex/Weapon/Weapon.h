@@ -9,6 +9,7 @@
 class ACasing;
 class UWidgetComponent;
 class USphereComponent;
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class EWeaponState: uint8 {
@@ -29,6 +30,19 @@ public:
 	void ShowPickupWidget(bool bShowWidget);
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Fire(const FVector& HitTarget);
+
+	
+	//Texture for crosshairs
+	UPROPERTY(EditAnywhere, Category="CrossHairs")
+	UTexture2D* CrosshairsCenter;
+	UPROPERTY(EditAnywhere, Category="CrossHairs")
+	UTexture2D* CrosshairsLeft;
+	UPROPERTY(EditAnywhere, Category="CrossHairs")
+	UTexture2D* CrosshairsRight;
+	UPROPERTY(EditAnywhere, Category="CrossHairs")
+	UTexture2D* CrosshairsTop;
+	UPROPERTY(EditAnywhere, Category="CrossHairs")
+	UTexture2D* CrosshairsBottom;
 
 protected:
 	virtual void BeginPlay() override;
@@ -59,7 +73,7 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ACasing> CasingClass;
-
+	
 	UFUNCTION()
 	void OnRep_WeaponState();
 	

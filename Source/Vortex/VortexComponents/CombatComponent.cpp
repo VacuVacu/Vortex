@@ -9,12 +9,14 @@
 #include "Net/UnrealNetwork.h"
 #include "Vortex/Character/VortexCharacter.h"
 #include "Vortex/Weapon/Weapon.h"
+#include "Vortex/PlayController/VortexPlayerController.h"
+#include "Vortex/HUD/VortexHUD.h"
 
 DEFINE_LOG_CATEGORY(LogCombatComponent);
 
 UCombatComponent::UCombatComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 
 	BaseWalkSpeed = 600.f;
 	AimWalkSpeed = 450.f;
@@ -41,7 +43,6 @@ void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip) {
 	Character->GetCharacterMovement()->bOrientRotationToMovement = false;
 	Character->bUseControllerRotationYaw = true;
 }
-
 
 // Called when the game starts
 void UCombatComponent::BeginPlay()
@@ -119,4 +120,43 @@ inline void UCombatComponent::ServerFire_Implementation(const FVector_NetQuantiz
 void UCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	SetHUDCorsshairs(DeltaTime);
+}
+
+void UCombatComponent::SetHUDCorsshairs(float DeltaTime) {
+	if (Character==nullptr || Character->Controller == nullptr) return;
+	Controller = Controller==nullptr ? Cast<AVortexPlayerController>(Character->Controller) :Controller;
+	if (Controller) {
+		HUD = HUD == nullptr ? Cast<AVortexHUD>(Controller->GetHUD()) : HUD;
+		if (HUD) {
+			FHUDPackage HUDPackage;
+			if (EquippedWeapon) {
+				HUDPackage.CrosshairCenter = EquippedWeapon->CrosshairsCenter;
+				HUDPackage.CrosshairLeft = EquippedWeapon->CrosshairsLeft;
+				HUDPackage.CrosshairRight = EquippedWeapon->CrosshairsRight;
+				HUDPackage.CrosshairTop = EquippedWeapon->CrosshairsTop;
+				HUDPackage.CrosshairBottom = EquippedWeapon->CrosshairsBottom;
+			}else {
+				HUDPackage.CrosshairCenter = nullptr;
+				HUDPackage.CrosshairLeft = nullptr;
+				HUDPackage.CrosshairRight = nullptr;
+				HUDPackage.CrosshairTop = nullptr;
+				HUDPackage.CrosshairBottom = nullptr;
+			}
+			// calculate corsshair spread
+			FVector2D WalkSpeedRange(0.f, Character->GetCharacterMovement()->MaxWalkSpeed);
+			FVector2D VelocityMultiplierRange(0.f, 1.f);
+			FVector Velocity = Character->GetVelocity();
+			Velocity.Z = 0.f;
+			CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityMultiplierRange, Velocity.Size());
+			if (Character->GetCharacterMovement()->IsFalling()) {
+				CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 2.25f, DeltaTime, 2.25f);	
+			}else {
+				CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, 2.25f);	
+			}
+			HUDPackage.CrosshairSpread = CrosshairVelocityFactor + CrosshairInAirFactor;
+			
+			HUD->SetHUDPackage(HUDPackage);
+		}
+	}
 }
