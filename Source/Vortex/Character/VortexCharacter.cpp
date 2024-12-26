@@ -17,6 +17,7 @@
 #include "Vortex/VortexComponents/CombatComponent.h"
 #include "Vortex/Weapon/Weapon.h"
 #include "VortexAnimInstance.h"
+#include "Vortex/Vortex.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
 
@@ -45,10 +46,12 @@ AVortexCharacter::AVortexCharacter()
 	
 	Combat = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 	
-	GetMovementComponent()->NavAgentProps.bCanCrouch = true;
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 850.0f, 0.0f);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);  
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 850.f, 0.0f);
 	
 	NetUpdateFrequency = 66.f;
 	MinNetUpdateFrequency = 33.f;
@@ -74,9 +77,26 @@ void AVortexCharacter::PlayFireMontage(bool bAiming) {
 	}
 }
 
+void AVortexCharacter::PlayHitReactMontage() {
+	if (Combat == nullptr || Combat->EquippedWeapon == nullptr)
+		return;
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && HitReactMontage) {
+		AnimInstance->Montage_Play(HitReactMontage);
+		FName SectionName("FromFront");
+		AnimInstance->Montage_JumpToSection(SectionName);
+	}
+}
+
 void AVortexCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(AVortexCharacter, OverlappingWeapon, COND_OwnerOnly);
+}
+
+void AVortexCharacter::OnRep_ReplicatedMovement() {
+	Super::OnRep_ReplicatedMovement();
+	SimProxiesTurn();
+	TimeSinceLastMovementReplication = 0.f;
 }
 
 void AVortexCharacter::BeginPlay()
@@ -95,8 +115,16 @@ void AVortexCharacter::BeginPlay()
 void AVortexCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	AimOffset(DeltaTime);
+	if (GetLocalRole() > ROLE_SimulatedProxy && IsLocallyControlled()) {
+		AimOffset(DeltaTime);
+	}else {
+		TimeSinceLastMovementReplication += DeltaTime;
+		if (TimeSinceLastMovementReplication > 0.25f) {
+			OnRep_ReplicatedMovement();
+		}
+		CalculateAO_Pitch();
+	}
+	HideCameraIfCharacterClose();
 }
 
 void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -118,7 +146,7 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AVortexCharacter::Crouching);
 		// Aim
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &AVortexCharacter::Aim);
-		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &AVortexCharacter::Unaim);
+		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &AVortexCharacter::Aim);
 		// Fire
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AVortexCharacter::Fire);
 	}
@@ -199,15 +227,10 @@ void AVortexCharacter::Crouching(const FInputActionValue& Value) {
 	}
 }
 
-void AVortexCharacter::Aim() {
+void AVortexCharacter::Aim(const FInputActionValue& Value) {
+	bool bAim = Value.Get<bool>();
 	if (Combat) {
-		Combat->SetAiming(true);
-	}
-}
-
-void AVortexCharacter::Unaim() {
-	if (Combat) {
-		Combat->SetAiming(false);
+		Combat->SetAiming(bAim);
 	}
 }
 
@@ -218,16 +241,31 @@ void AVortexCharacter::Fire(const FInputActionValue& Value) {
 	}
 }
 
+void AVortexCharacter::CalculateAO_Pitch() {
+	AO_Pitch = GetBaseAimRotation().Pitch;
+	if (AO_Pitch > 90.f && !IsLocallyControlled()) {
+		// map Pitch from [270, 360] to [-90, 0]
+		FVector2D InRange(270.f, 360.f);
+		FVector2D OutRange(-90.f, 0.f);
+		AO_Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, AO_Pitch);
+	}
+}
+
+float AVortexCharacter::CalculateSpeed() {
+	FVector Veocity = GetVelocity();
+	Veocity.Z = 0.f;
+	return Veocity.Size();
+}
+
 void AVortexCharacter::AimOffset(float DeltaTime) {
 	if (Combat && Combat->EquippedWeapon==nullptr) {
 		return;
 	}
-	FVector Veocity = GetVelocity();
-	Veocity.Z = 0.f;
-	float Speed = Veocity.Size();
+	float Speed = CalculateSpeed();
 	bool bIsInAir = GetCharacterMovement()->IsFalling();
 
 	if (Speed == 0.f && !bIsInAir) {
+		bRotateRootBone = true;
 		FRotator CurrentAimRotation = FRotator(0.f, GetBaseAimRotation().Yaw, 0.f);
 		FRotator DeltaAimRotation = UKismetMathLibrary::NormalizedDeltaRotator(CurrentAimRotation, StartingAimRotation);
 		AO_Yaw = DeltaAimRotation.Yaw;
@@ -238,19 +276,40 @@ void AVortexCharacter::AimOffset(float DeltaTime) {
 		TurnInPlace(DeltaTime);
 	}
 	if (Speed > 0.f || bIsInAir) {
+		bRotateRootBone = false;
 		StartingAimRotation = FRotator(0.f, GetBaseAimRotation().Yaw, 0.f);
 		AO_Yaw = 0.f;
 		bUseControllerRotationYaw = true;
 		TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 	}
 
-	AO_Pitch = GetBaseAimRotation().Pitch;
-	if (AO_Pitch > 90.f && !IsLocallyControlled()) {
-		// map Pitch from [270, 360] to [-90, 0]
-		FVector2D InRange(270.f, 360.f);
-		FVector2D OutRange(-90.f, 0.f);
-		AO_Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, AO_Pitch);
+	CalculateAO_Pitch();
+}
+
+void AVortexCharacter::SimProxiesTurn() {
+	if (Combat == nullptr || Combat->EquippedWeapon == nullptr) {return;}
+	bRotateRootBone = false;
+	float Speed = CalculateSpeed();
+	if (Speed > 0.f) {
+		TurningInPlace = ETurningInPlace::ETIP_NotTurning;
+		return;
 	}
+	ProxyRotationLastFrame = ProxyRotation;
+	ProxyRotation = GetActorRotation();
+	ProxyYaw = UKismetMathLibrary::NormalizedDeltaRotator(ProxyRotation, ProxyRotationLastFrame).Yaw;
+
+	if (FMath::Abs(ProxyYaw) > TurnThreshold) {
+		if (ProxyYaw > TurnThreshold) {
+			TurningInPlace = ETurningInPlace::ETIP_Right;
+		}else if (ProxyYaw < -TurnThreshold) {
+			TurningInPlace = ETurningInPlace::ETIP_Left;
+		}
+		else {
+			TurningInPlace = ETurningInPlace::ETIP_NotTurning;
+		}
+		return;
+	}
+	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 }
 
 void AVortexCharacter::TurnInPlace(float DeltaTime) {
@@ -267,6 +326,27 @@ void AVortexCharacter::TurnInPlace(float DeltaTime) {
 			StartingAimRotation = FRotator(0.f, GetBaseAimRotation().Yaw, 0.f);
 		}
 	}
+}
+
+void AVortexCharacter::HideCameraIfCharacterClose() {
+	if (!IsLocallyControlled()) {
+		return;
+	}
+	if ((FollowCamera->GetComponentLocation() - GetActorLocation()).Size() < CameraThreshold) {
+		GetMesh()->SetVisibility(false);
+		if (Combat && Combat->EquippedWeapon && Combat->EquippedWeapon->GetWeaponMesh()) {
+			Combat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = true;
+		}
+	}else {
+		GetMesh()->SetVisibility(true);
+		if (Combat && Combat->EquippedWeapon && Combat->EquippedWeapon->GetWeaponMesh()) {
+			Combat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = false;
+		}
+	}
+}
+
+void AVortexCharacter::MulticastHit_Implementation() {
+	PlayHitReactMontage();
 }
 
 void AVortexCharacter::SetOverlappingWeapon(AWeapon* Weapon) {
@@ -305,6 +385,12 @@ AWeapon* AVortexCharacter::GetEquippedWeapon() {
 	}
 	return Combat->EquippedWeapon;
 }
+
+FVector AVortexCharacter::GetHitTarget() const {
+	if (Combat==nullptr) return FVector();
+	return Combat->HitTarget;
+}
+
 
 
 

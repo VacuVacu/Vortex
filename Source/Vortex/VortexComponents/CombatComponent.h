@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Logging/LogMacros.h"
+#include "Vortex/HUD/VortexHUD.h"
 #include "CombatComponent.generated.h"
 
 #define TRACE_LENGTH 80000.f
@@ -70,11 +71,24 @@ private:
 	float AimWalkSpeed;
 
 	bool bFireButtonPressed;
-
 	float CrosshairVelocityFactor;
-
 	float CrosshairInAirFactor;
+	float CrosshairAimFactor;
+	float CrosshairShootingFactor;
+
+	FVector HitTarget;
+	FHUDPackage HUDPackage;
+
+	float DefaultFOV;
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float ZoomedFOV = 30.f;
+
+	float CurrentFOV;
 	
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float ZoomedInterpSpeed = 20.f;
+
+	void InterpFOV(float DeltaTime);
 public:	
 	
 		
