@@ -2,6 +2,22 @@
 
 
 #include "VortexHUD.h"
+#include "CharacterOverlay.h"
+#include "Blueprint/UserWidget.h"
+
+void AVortexHUD::BeginPlay() {
+	Super::BeginPlay();
+
+	AddCharacterToOverlay();
+}
+
+void AVortexHUD::AddCharacterToOverlay() {
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (PlayerController && CharacterOverlayClass) {
+		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
+		CharacterOverlay->AddToViewport();
+	}
+}
 
 void AVortexHUD::DrawHUD() {
 	Super::DrawHUD();

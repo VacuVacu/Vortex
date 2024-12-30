@@ -14,7 +14,7 @@ void AProjectileWeapon::Fire(const FVector& HitTarget) {
 	const USkeletalMeshSocket* MuzzleFlashSocket = GetWeaponMesh()->GetSocketByName(FName("MuzzleFlash"));
 	if (MuzzleFlashSocket) {
 		FTransform SocketTransform = MuzzleFlashSocket->GetSocketTransform(GetWeaponMesh());
-		FVector ToTarget = HitTarget - SocketTransform.GetTranslation();
+		FVector ToTarget = HitTarget - SocketTransform.GetLocation();
 		FRotator TargetRotation = ToTarget.Rotation();
 		if (ProjectileClass && InstigatorPawn) {
 			FActorSpawnParameters SpawnParameters;
@@ -23,7 +23,8 @@ void AProjectileWeapon::Fire(const FVector& HitTarget) {
 			UWorld* World = GetWorld();
 			if (World) {
 				AProjectile* Bullet = World->SpawnActor<AProjectile>(ProjectileClass, SocketTransform.GetLocation(), TargetRotation, SpawnParameters);
-				UE_LOG(LogTemp, Warning, TEXT("Bullet replicate %d"), Bullet->GetIsReplicated());
+				// Bullet->SetReplicates(true);
+				// UE_LOG(LogTemp, Warning, TEXT("Bullet replicate %d"), Bullet->GetIsReplicated());
 			}
 		}
 	}

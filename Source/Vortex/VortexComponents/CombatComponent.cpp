@@ -2,7 +2,6 @@
 
 
 #include "CombatComponent.h"
-
 #include "Camera/CameraComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -12,6 +11,8 @@
 #include "Vortex/Weapon/Weapon.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
 #include "Vortex/HUD/VortexHUD.h"
+#include "Vortex/Interfaces/InteractWithCrosshairsInterface.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY(LogCombatComponent);
 
@@ -49,6 +50,7 @@ void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip) {
 void UCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	bCanFire = true;
 	if (Character) {
 		Character->GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed;
 
@@ -94,16 +96,39 @@ void UCombatComponent::OnRep_EquippedWeapon() {
 	}
 }
 
-void UCombatComponent::Fire(bool bPressed) {
-	bFireButtonPressed = bPressed;
-	if (bFireButtonPressed) {
-		FHitResult HitResult;
-		TraceUnderCrossHairs(HitResult);
-		ServerFire(HitResult.ImpactPoint);
+void UCombatComponent::StartFireTimer() {
+	if (EquippedWeapon == nullptr || Character == nullptr) return;
+	Character->GetWorldTimerManager().SetTimer(FireTimer, this,
+		&UCombatComponent::FireTimerFinished,EquippedWeapon->FireDelay);
+}
 
+void UCombatComponent::FireTimerFinished() {
+	if (EquippedWeapon == nullptr) return;
+	bCanFire = true;
+	if (bFireButtonPressed && EquippedWeapon->bAutomatic) {
+		Fire();
+	}  
+}
+
+void UCombatComponent::Fire() {
+	// ServerFire(HitTarget);
+	// if (EquippedWeapon) {
+	// 	CrosshairShootingFactor = 0.75f;
+	// }
+	if (bCanFire) {
+		ServerFire(HitTarget);
 		if (EquippedWeapon) {
 			CrosshairShootingFactor = 0.75f;
+			bCanFire = false;
 		}
+		StartFireTimer();
+	}
+}
+
+void UCombatComponent::FireButtonPressed(bool bPressed) {
+	bFireButtonPressed = bPressed;
+	if (bFireButtonPressed) {
+		Fire();
 	}
 }
 
@@ -112,25 +137,28 @@ void UCombatComponent::TraceUnderCrossHairs(FHitResult& TraceHitResult) {
 	if (GEngine && GEngine->GameViewport) {
 		GEngine->GameViewport->GetViewportSize(ViewportSize);
 	}
-
-	FVector2D CrossHairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
-	FVector CrossHairWorldPosition;
-	FVector CrossHairWorldDirection;
-	bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld(UGameplayStatics::GetPlayerController(this, 0),
-		CrossHairLocation,CrossHairWorldPosition, CrossHairWorldDirection);
+	FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
+	FVector CrosshairWorldPosition;
+	FVector CrosshairWorldDirection;
+	bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld(
+	UGameplayStatics::GetPlayerController(this, 0),
+	CrosshairLocation,
+	CrosshairWorldPosition,
+	CrosshairWorldDirection
+	);
 	if (bScreenToWorld) {
-		FVector Start = CrossHairWorldPosition;
-
+		FVector Start = CrosshairWorldPosition;
+		
 		if (Character) {
 			float DistanceToCharacter = (Character->GetActorLocation() - Start).Size();
-			Start += CrossHairWorldDirection * (DistanceToCharacter + 100);
+			Start += CrosshairWorldDirection * (DistanceToCharacter + 100);
 		}
 		
-		FVector End = Start + CrossHairWorldDirection * TRACE_LENGTH;
+		FVector End = Start + CrosshairWorldDirection * TRACE_LENGTH;
 
 		GetWorld()->LineTraceSingleByChannel(TraceHitResult, Start, End, ECC_Visibility);
+
 		if (TraceHitResult.GetActor() && TraceHitResult.GetActor()->Implements<UInteractWithCrosshairsInterface>()) {
-			UE_LOG(LogTemp, Error, TEXT("hit actor %p"), TraceHitResult.GetActor());
 			HUDPackage.CrosshairsColor = FLinearColor::Red;
 		}else {
 			HUDPackage.CrosshairsColor = FLinearColor::White;

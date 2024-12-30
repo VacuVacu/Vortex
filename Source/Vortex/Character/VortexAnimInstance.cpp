@@ -2,7 +2,6 @@
 
 
 #include "VortexAnimInstance.h"
-
 #include "VortexCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -39,8 +38,8 @@ void UVortexAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	FRotator MovementRotation = UKismetMathLibrary::MakeRotFromX(VortexCharacter->GetVelocity());
 	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(MovementRotation, AimRotation);
 	DeltaRotation = FMath::RInterpTo(DeltaRotation,DeltaRot,DeltaSeconds,6.f);
-	YawOffset = DeltaRotation.Yaw;
-
+	YawOffset = DeltaRotation.Yaw; 
+   
 	CharacterRotationLastFrame = CharacterRotation;
 	CharacterRotation = VortexCharacter->GetActorRotation();
 	const FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(CharacterRotation, CharacterRotationLastFrame);

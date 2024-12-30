@@ -17,6 +17,7 @@ class UWidgetComponent;
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
+class AVortexPlayerController;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVortexCharacter, Log, All);
 
@@ -38,9 +39,6 @@ public:
 	virtual void PostInitializeComponents() override;
 
 	void PlayFireMontage(bool bAiming);
-	
-	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastHit();
 
 	virtual void OnRep_ReplicatedMovement() override;
 	
@@ -58,21 +56,20 @@ protected:
 	void SimProxiesTurn();
 	void Fire(const FInputActionValue& Value);
 	void CalculateAO_Pitch();
-
+	UFUNCTION()
+	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedActor, AActor* DamageCauser);
+	void UpdateHUDHealth();
+	
 private:
-	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* CharacterMappingContext;
-
-	/** Jump Input Action */
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* JumpAction;
-
-	/** Move Input Action */
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
-
-	/** Look Input Action */
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
@@ -137,6 +134,20 @@ private:
 	void PlayHitReactMontage();
 	float CalculateSpeed();
 
+	/**
+	 * PLayer Health
+	 */
+	UPROPERTY(EditAnywhere,Category = "Player States")
+	float MaxHealth = 100.f;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Health, VisibleAnywhere, Category="Player States")
+	float Health = 100.f;
+
+	UFUNCTION()
+	void OnRep_Health();
+
+	AVortexPlayerController* VortexPlayerController;
+	
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);
 	bool IsWeaponEquipped();

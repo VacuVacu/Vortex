@@ -9,6 +9,7 @@
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "IAutomationControllerManager.h"
 #include "InputActionValue.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
@@ -18,6 +19,7 @@
 #include "Vortex/Weapon/Weapon.h"
 #include "VortexAnimInstance.h"
 #include "Vortex/Vortex.h"
+#include "Vortex/PlayController/VortexPlayerController.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
 
@@ -50,7 +52,7 @@ AVortexCharacter::AVortexCharacter()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);  
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECollisionResponse::ECR_Block);
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 850.f, 0.0f);
 	
 	NetUpdateFrequency = 66.f;
@@ -91,6 +93,7 @@ void AVortexCharacter::PlayHitReactMontage() {
 void AVortexCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(AVortexCharacter, OverlappingWeapon, COND_OwnerOnly);
+	DOREPLIFETIME(AVortexCharacter, Health);
 }
 
 void AVortexCharacter::OnRep_ReplicatedMovement() {
@@ -102,7 +105,7 @@ void AVortexCharacter::OnRep_ReplicatedMovement() {
 void AVortexCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
@@ -110,6 +113,13 @@ void AVortexCharacter::BeginPlay()
 			Subsystem->AddMappingContext(CharacterMappingContext, 0);
 		}
 	}
+
+	UpdateHUDHealth();
+
+	if (HasAuthority()) {
+		OnTakeAnyDamage.AddDynamic(this, &ThisClass::AVortexCharacter::ReceiveDamage);
+	}
+
 }
 
 void AVortexCharacter::Tick(float DeltaTime)
@@ -149,6 +159,7 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &AVortexCharacter::Aim);
 		// Fire
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AVortexCharacter::Fire);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AVortexCharacter::Fire);
 	}
 	else
 	{
@@ -237,7 +248,7 @@ void AVortexCharacter::Aim(const FInputActionValue& Value) {
 void AVortexCharacter::Fire(const FInputActionValue& Value) {
 	bool bFire = Value.Get<bool>();
 	if (Combat) {
-		Combat->Fire(bFire);
+		Combat->FireButtonPressed(bFire);
 	}
 }
 
@@ -249,6 +260,14 @@ void AVortexCharacter::CalculateAO_Pitch() {
 		FVector2D OutRange(-90.f, 0.f);
 		AO_Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, AO_Pitch);
 	}
+}
+
+void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
+	AController* InstigatedActor, AActor* DamageCauser) {
+
+	Health = FMath::Clamp(Health - Damage, 0.0f, MaxHealth);
+	UpdateHUDHealth();
+	PlayHitReactMontage();
 }
 
 float AVortexCharacter::CalculateSpeed() {
@@ -345,8 +364,16 @@ void AVortexCharacter::HideCameraIfCharacterClose() {
 	}
 }
 
-void AVortexCharacter::MulticastHit_Implementation() {
+void AVortexCharacter::OnRep_Health() {
+	UpdateHUDHealth();
 	PlayHitReactMontage();
+}
+
+void AVortexCharacter::UpdateHUDHealth() {
+	VortexPlayerController = VortexPlayerController == nullptr ? Cast<AVortexPlayerController>(Controller) : VortexPlayerController;
+	if (VortexPlayerController) {
+		VortexPlayerController->SetHUDHealth(Health, MaxHealth);
+	}
 }
 
 void AVortexCharacter::SetOverlappingWeapon(AWeapon* Weapon) {
@@ -390,6 +417,8 @@ FVector AVortexCharacter::GetHitTarget() const {
 	if (Combat==nullptr) return FVector();
 	return Combat->HitTarget;
 }
+
+
 
 
 

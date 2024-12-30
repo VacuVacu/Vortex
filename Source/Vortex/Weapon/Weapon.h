@@ -30,7 +30,6 @@ public:
 	void ShowPickupWidget(bool bShowWidget);
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Fire(const FVector& HitTarget);
-
 	
 	//Texture for crosshairs
 	UPROPERTY(EditAnywhere, Category="CrossHairs")
@@ -49,6 +48,11 @@ public:
 	float ZoomedFOV = 30.f;
 	UPROPERTY(EditAnywhere)
 	float ZoomedInterpSpeed = 20.f;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float FireDelay = 0.15f;
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	bool bAutomatic = true;
 
 protected:
 	virtual void BeginPlay() override;

@@ -18,7 +18,9 @@ public:
 	AProjectile();
 	virtual void Tick(float DeltaTime) override;
 	virtual void Destroyed() override;
-	
+
+	UPROPERTY(EditAnywhere)
+	float Damage = 20.f;
 protected:
 	virtual void BeginPlay() override;
 
@@ -38,7 +40,7 @@ private:
 	UParticleSystem* ImpactParticles;
 	UPROPERTY(EditAnywhere)
 	USoundCue* ImpactSound;
-	
+
 public:	
 
 

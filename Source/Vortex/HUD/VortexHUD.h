@@ -6,6 +6,7 @@
 #include "GameFramework/HUD.h"
 #include "VortexHUD.generated.h"
 
+class UCharacterOverlay;
 class UTexture2D;
 
 USTRUCT(BlueprintType)
@@ -29,6 +30,15 @@ class VORTEX_API AVortexHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
+	UPROPERTY(EditAnywhere, Category="Player States")
+	TSubclassOf<UUserWidget> CharacterOverlayClass;
+	
+	UCharacterOverlay* CharacterOverlay;
+
+protected:
+	virtual void BeginPlay() override;
+	void AddCharacterToOverlay();
+	
 private:
 	FHUDPackage HUDPackage;
 	UPROPERTY(EditAnywhere)
