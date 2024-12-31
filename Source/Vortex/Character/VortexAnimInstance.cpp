@@ -33,6 +33,7 @@ void UVortexAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	bAiming = VortexCharacter->IsAiming();
 	TurningInPlace = VortexCharacter->GetTurningInPlace();
 	bRotateRootBone = VortexCharacter->ShouldRotateRootBone();
+	bElimmed = VortexCharacter->IsElimmed();
 
 	FRotator AimRotation = VortexCharacter->GetBaseAimRotation();
 	FRotator MovementRotation = UKismetMathLibrary::MakeRotFromX(VortexCharacter->GetVelocity());

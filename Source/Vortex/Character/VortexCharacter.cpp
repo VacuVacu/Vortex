@@ -9,7 +9,6 @@
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "IAutomationControllerManager.h"
 #include "InputActionValue.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
@@ -19,6 +18,7 @@
 #include "Vortex/Weapon/Weapon.h"
 #include "VortexAnimInstance.h"
 #include "Vortex/Vortex.h"
+#include "Vortex/GameMode/VortexGameMode.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
@@ -26,6 +26,7 @@ DEFINE_LOG_CATEGORY(LogVortexCharacter);
 AVortexCharacter::AVortexCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 500.0f;
@@ -79,6 +80,13 @@ void AVortexCharacter::PlayFireMontage(bool bAiming) {
 	}
 }
 
+void AVortexCharacter::PlayElimMontage() {
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && ElimMontage) {
+		AnimInstance->Montage_Play(ElimMontage);
+	}
+}
+
 void AVortexCharacter::PlayHitReactMontage() {
 	if (Combat == nullptr || Combat->EquippedWeapon == nullptr)
 		return;
@@ -101,6 +109,24 @@ void AVortexCharacter::OnRep_ReplicatedMovement() {
 	SimProxiesTurn();
 	TimeSinceLastMovementReplication = 0.f;
 }
+
+void AVortexCharacter::Elim() {
+	MulticastElim();
+	GetWorldTimerManager().SetTimer(ElimTimer, this, &AVortexCharacter::ElimTimerFinished, ElimDelay);
+}
+
+void AVortexCharacter::MulticastElim_Implementation() {
+	bElimmed = true;
+	PlayElimMontage();
+}
+
+void AVortexCharacter::ElimTimerFinished() {
+	AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
+	if (VortexGameMode) {
+		VortexGameMode->RequestRespawn(this, Controller);
+	}
+}
+
 
 void AVortexCharacter::BeginPlay()
 {
@@ -263,11 +289,19 @@ void AVortexCharacter::CalculateAO_Pitch() {
 }
 
 void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
-	AController* InstigatedActor, AActor* DamageCauser) {
+	AController* InstigatedController, AActor* DamageCauser) {
 
 	Health = FMath::Clamp(Health - Damage, 0.0f, MaxHealth);
 	UpdateHUDHealth();
 	PlayHitReactMontage();
+	if (Health == 0.0f) {
+		AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
+		if (VortexGameMode) {
+			VortexPlayerController = VortexPlayerController == nullptr ? Cast<AVortexPlayerController>(Controller) : VortexPlayerController;
+			AVortexPlayerController* AttackerController = Cast<AVortexPlayerController>(InstigatedController);
+			VortexGameMode->PlayerEliminated(this, VortexPlayerController, AttackerController);
+		}
+	}
 }
 
 float AVortexCharacter::CalculateSpeed() {

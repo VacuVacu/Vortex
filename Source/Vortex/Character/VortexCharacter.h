@@ -40,7 +40,13 @@ public:
 
 	void PlayFireMontage(bool bAiming);
 
+	void PlayElimMontage();
+
 	virtual void OnRep_ReplicatedMovement() override;
+
+	void Elim();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastElim();
 	
 protected:
 	// Called when the game starts or when spawned
@@ -57,7 +63,7 @@ protected:
 	void Fire(const FInputActionValue& Value);
 	void CalculateAO_Pitch();
 	UFUNCTION()
-	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedActor, AActor* DamageCauser);
+	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedController, AActor* DamageCauser);
 	void UpdateHUDHealth();
 	
 private:
@@ -106,6 +112,9 @@ private:
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* HitReactMontage;
 
+	UPROPERTY(EditAnywhere, Category="Combat")
+	UAnimMontage* ElimMontage;
+	
 	UPROPERTY(EditAnywhere)
 	float CameraThreshold = 200.f;
 	
@@ -146,7 +155,15 @@ private:
 	UFUNCTION()
 	void OnRep_Health();
 
-	AVortexPlayerController* VortexPlayerController;
+	AVortexPlayerController* VortexPlayerController = nullptr;
+
+	bool bElimmed = false;
+	
+	FTimerHandle ElimTimer;
+	UPROPERTY(EditDefaultsOnly)
+	float ElimDelay = 3.f;
+	void ElimTimerFinished();
+	
 	
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);
@@ -157,9 +174,11 @@ public:
 	FORCEINLINE ETurningInPlace GetTurningInPlace() const { return TurningInPlace; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const {return FollowCamera;}
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
+	FORCEINLINE bool IsElimmed() const {return bElimmed;}
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
 };
+
 
 
 

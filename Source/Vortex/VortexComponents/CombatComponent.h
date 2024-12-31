@@ -15,7 +15,7 @@ class AVortexPlayerController;
 class AWeapon;
 class AVortexCharacter;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogCombatComponent, Log, All);
+// DECLARE_LOG_CATEGORY_EXTERN(LogCombatComponent, Log, All);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class VORTEX_API UCombatComponent : public UActorComponent

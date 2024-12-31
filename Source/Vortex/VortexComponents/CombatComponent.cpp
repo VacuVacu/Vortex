@@ -14,7 +14,7 @@
 #include "Vortex/Interfaces/InteractWithCrosshairsInterface.h"
 #include "TimerManager.h"
 
-DEFINE_LOG_CATEGORY(LogCombatComponent);
+// DEFINE_LOG_CATEGORY(LogCombatComponent);
 
 UCombatComponent::UCombatComponent()
 {
