@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/TimelineComponent.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Vortex/VortexTypes/TurningInPlace.h"
 #include "Vortex/Interfaces/InteractWithCrosshairsInterface.h"
 #include "VortexCharacter.generated.h"
 
+class AVortexPlayerState;
 class UCombatComponent;
 class AWeapon;
 class USpringArmComponent;
@@ -22,8 +24,7 @@ class AVortexPlayerController;
 DECLARE_LOG_CATEGORY_EXTERN(LogVortexCharacter, Log, All);
 
 UCLASS(config=Game)
-class VORTEX_API AVortexCharacter : public ACharacter, public IInteractWithCrosshairsInterface
-{
+class VORTEX_API AVortexCharacter : public ACharacter, public IInteractWithCrosshairsInterface {
 	GENERATED_BODY()
 
 public:
@@ -47,7 +48,9 @@ public:
 	void Elim();
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastElim();
-	
+
+	virtual void Destroyed() override;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -63,19 +66,22 @@ protected:
 	void Fire(const FInputActionValue& Value);
 	void CalculateAO_Pitch();
 	UFUNCTION()
-	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedController, AActor* DamageCauser);
+	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
+	                   AController* InstigatedController, AActor* DamageCauser);
 	void UpdateHUDHealth();
 	
+	void PollInit();
+
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* CharacterMappingContext;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* JumpAction;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
@@ -84,16 +90,16 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* CrouchAction;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* AimAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* FireAction;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
 
@@ -114,10 +120,10 @@ private:
 
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* ElimMontage;
-	
+
 	UPROPERTY(EditAnywhere)
 	float CameraThreshold = 200.f;
-	
+
 	float AO_Yaw;
 	float AO_Pitch;
 	float InterpAO_Yaw;
@@ -129,10 +135,10 @@ private:
 	FRotator ProxyRotation;
 	float ProxyYaw;
 	float TimeSinceLastMovementReplication;
-	
+
 	ETurningInPlace TurningInPlace;
 	void TurnInPlace(float DeltaTime);
-	
+
 	UFUNCTION()
 	void OnRep_OverlappingWeapon(AWeapon* LastWeapon);
 
@@ -146,7 +152,7 @@ private:
 	/**
 	 * PLayer Health
 	 */
-	UPROPERTY(EditAnywhere,Category = "Player States")
+	UPROPERTY(EditAnywhere, Category = "Player States")
 	float MaxHealth = 100.f;
 
 	UPROPERTY(ReplicatedUsing=OnRep_Health, VisibleAnywhere, Category="Player States")
@@ -158,13 +164,43 @@ private:
 	AVortexPlayerController* VortexPlayerController = nullptr;
 
 	bool bElimmed = false;
-	
+
 	FTimerHandle ElimTimer;
 	UPROPERTY(EditDefaultsOnly)
 	float ElimDelay = 3.f;
 	void ElimTimerFinished();
-	
-	
+
+	/*
+	 * Dissolve Effect
+	 */
+	UPROPERTY(VisibleAnywhere)
+	UTimelineComponent* DissolveTimeline;
+	FOnTimelineFloat DissolveTrack;
+
+	UPROPERTY(EditAnywhere)
+	UCurveFloat* DissolveCurve;
+
+	UFUNCTION()
+	void UpdateDissolveMaterial(float DissolveValue);
+	void StartDissolve();
+
+	UPROPERTY(VisibleAnywhere, Category="Elim")
+	UMaterialInstanceDynamic* DynamicDissolveMaterialInstance;
+	UPROPERTY(EditAnywhere, Category="Elim")
+	UMaterialInstance* DissolveMaterialInstance;
+
+	/*
+	 * Elim bot
+	 */
+	UPROPERTY(EditAnywhere)
+	UParticleSystem* ElimBotEffect;
+	UPROPERTY(VisibleAnywhere)
+	UParticleSystemComponent* ElimBotComponent;
+	UPROPERTY(EditAnywhere)
+	USoundCue* ElimBotSound;
+
+	UPROPERTY()
+	AVortexPlayerState* VortexPlayerState = nullptr;
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);
 	bool IsWeaponEquipped();
@@ -172,16 +208,11 @@ public:
 	FORCEINLINE float GetAO_Yaw() const { return AO_Yaw; }
 	FORCEINLINE float GetAO_Pitch() const { return AO_Pitch; }
 	FORCEINLINE ETurningInPlace GetTurningInPlace() const { return TurningInPlace; }
-	FORCEINLINE UCameraComponent* GetFollowCamera() const {return FollowCamera;}
+	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
-	FORCEINLINE bool IsElimmed() const {return bElimmed;}
+	FORCEINLINE bool IsElimmed() const { return bElimmed; }
+	FORCEINLINE float GetHealth() const { return Health; }
+	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
 };
-
-
-
-
-
-
-

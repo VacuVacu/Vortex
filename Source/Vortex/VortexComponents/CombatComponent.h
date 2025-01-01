@@ -55,8 +55,11 @@ protected:
 	void SetHUDCorsshairs(float DeltaTime);
 	
 private:
+	UPROPERTY()
 	AVortexCharacter* Character;
+	UPROPERTY()
 	AVortexPlayerController *Controller;
+	UPROPERTY()
 	AVortexHUD* HUD;
 
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeapon)

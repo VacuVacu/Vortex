@@ -17,9 +17,13 @@
 #include "Vortex/VortexComponents/CombatComponent.h"
 #include "Vortex/Weapon/Weapon.h"
 #include "VortexAnimInstance.h"
+#include "Kismet/GameplayStatics.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Sound/SoundCue.h"
 #include "Vortex/Vortex.h"
 #include "Vortex/GameMode/VortexGameMode.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
+#include "Vortex/PlayerState/VortexPlayerState.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
 
@@ -58,6 +62,8 @@ AVortexCharacter::AVortexCharacter()
 	
 	NetUpdateFrequency = 66.f;
 	MinNetUpdateFrequency = 33.f;
+
+	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
 }
 
 void AVortexCharacter::PostInitializeComponents() {
@@ -111,6 +117,9 @@ void AVortexCharacter::OnRep_ReplicatedMovement() {
 }
 
 void AVortexCharacter::Elim() {
+	if (Combat && Combat->EquippedWeapon) {
+		Combat->EquippedWeapon->Dropped();
+	}
 	MulticastElim();
 	GetWorldTimerManager().SetTimer(ElimTimer, this, &AVortexCharacter::ElimTimerFinished, ElimDelay);
 }
@@ -118,6 +127,34 @@ void AVortexCharacter::Elim() {
 void AVortexCharacter::MulticastElim_Implementation() {
 	bElimmed = true;
 	PlayElimMontage();
+	//start dissolve
+	if (DissolveMaterialInstance) {
+		DynamicDissolveMaterialInstance = UMaterialInstanceDynamic::Create(DissolveMaterialInstance, this);
+		GetMesh()->SetMaterial(0, DynamicDissolveMaterialInstance);
+		DynamicDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), 0.55f);
+		DynamicDissolveMaterialInstance->SetScalarParameterValue(TEXT("Glow"), 200.f);
+	}
+	StartDissolve();
+
+	//disable character movement
+	GetCharacterMovement()->DisableMovement();
+	GetCharacterMovement()->StopMovementImmediately();
+	if (VortexPlayerController) {
+		DisableInput(VortexPlayerController);
+	}
+	//disable collision
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	//spawn Elimbot
+	if (ElimBotEffect) {
+		FVector ElimBotSpawnLocation = GetActorLocation();
+		ElimBotSpawnLocation.Z += 200.f;
+		ElimBotComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ElimBotEffect, ElimBotSpawnLocation, GetActorRotation());
+	}
+	if (ElimBotSound) {
+		UGameplayStatics::SpawnSoundAtLocation(this, ElimBotSound, GetActorLocation());
+	}
 }
 
 void AVortexCharacter::ElimTimerFinished() {
@@ -127,6 +164,13 @@ void AVortexCharacter::ElimTimerFinished() {
 	}
 }
 
+
+void AVortexCharacter::Destroyed() {
+	Super::Destroyed();
+	if (ElimBotComponent) {
+		ElimBotComponent->DestroyComponent();
+	}
+}
 
 void AVortexCharacter::BeginPlay()
 {
@@ -161,6 +205,7 @@ void AVortexCharacter::Tick(float DeltaTime)
 		CalculateAO_Pitch();
 	}
 	HideCameraIfCharacterClose();
+	PollInit();
 }
 
 void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -407,6 +452,30 @@ void AVortexCharacter::UpdateHUDHealth() {
 	VortexPlayerController = VortexPlayerController == nullptr ? Cast<AVortexPlayerController>(Controller) : VortexPlayerController;
 	if (VortexPlayerController) {
 		VortexPlayerController->SetHUDHealth(Health, MaxHealth);
+	}
+}
+
+void AVortexCharacter::PollInit() {
+	if (VortexPlayerState == nullptr) {
+		VortexPlayerState = GetPlayerState<AVortexPlayerState>();
+		if (VortexPlayerState) {
+			VortexPlayerState->AddToScore(0.f);
+			VortexPlayerState->AddToDefeats(0);
+		}
+	}
+}
+
+void AVortexCharacter::UpdateDissolveMaterial(float DissolveValue) {
+	if (DynamicDissolveMaterialInstance) {
+		DynamicDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+	}
+}
+
+void AVortexCharacter::StartDissolve() {
+	DissolveTrack.BindDynamic(this, &AVortexCharacter::UpdateDissolveMaterial);
+	if (DissolveCurve && DissolveTimeline) {
+		DissolveTimeline->AddInterpFloat(DissolveCurve, DissolveTrack);
+		DissolveTimeline->Play();
 	}
 }
 
