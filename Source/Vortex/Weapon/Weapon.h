@@ -14,6 +14,7 @@ class ACasing;
 class UWidgetComponent;
 class USphereComponent;
 class UTexture2D;
+class USoundCue;
 
 UENUM(BlueprintType)
 enum class EWeaponState: uint8 {
@@ -36,6 +37,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Fire(const FVector& HitTarget);
 	void Dropped();
+	void AddAmmo(int32 AmmoToAdd);
 
 	//Texture for crosshairs
 	UPROPERTY(EditAnywhere, Category="CrossHairs")
@@ -60,6 +62,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	bool bAutomatic = true;
 
+	UPROPERTY(EditAnywhere)
+	USoundCue* EquipSound;
+	
 protected:
 	virtual void BeginPlay() override;
 
@@ -120,5 +125,7 @@ public:
 	FORCEINLINE float GetZoomedFOV() const { return ZoomedFOV; }
 	FORCEINLINE float GetZoomedInterpSpeed() const { return ZoomedInterpSpeed; }
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponType; }
+	FORCEINLINE int32 GetAmmo() const { return Ammo; }
+	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
 	bool IsEmpty();
 };
