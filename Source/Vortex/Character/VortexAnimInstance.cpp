@@ -66,11 +66,6 @@ void UVortexAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 				RightHandTransform.GetLocation() + (RightHandTransform.GetLocation() - VortexCharacter->GetHitTarget()));
 			RightHandRotation = FMath::RInterpTo(RightHandRotation,LookAtRotation,DeltaSeconds,30.f);
 		}
-		
-		// FTransform MuzzleTipTransform = EquippedWeapon->GetWeaponMesh()->GetSocketTransform(FName("MuzzleFlash"), RTS_World);
-		// FVector MuzzleX(FRotationMatrix(MuzzleTipTransform.GetRotation().Rotator()).GetUnitAxis(EAxis::X));
-		// DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), MuzzleTipTransform.GetLocation()+MuzzleX*1000.f,
-		// 	FColor::Red);
-		// DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), VortexCharacter->GetHitTarget(), FColor::Orange);
 	}
+	bUseFABRIC = VortexCharacter->GetCombatState() != ECombatState::ECS_Reloading;
 }

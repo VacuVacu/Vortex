@@ -24,6 +24,7 @@
 #include "Vortex/GameMode/VortexGameMode.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
 #include "Vortex/PlayerState/VortexPlayerState.h"
+#include "Vortex/Weapon/WeaponTypes.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
 
@@ -86,6 +87,22 @@ void AVortexCharacter::PlayFireMontage(bool bAiming) {
 	}
 }
 
+void AVortexCharacter::PlayReloadMontage() {
+	if (Combat == nullptr || Combat->EquippedWeapon == nullptr)
+		return;
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && ReloadMontage) {
+		AnimInstance->Montage_Play(ReloadMontage);
+		FName SectionName = FName("Rifle");
+		switch (Combat->EquippedWeapon->GetWeaponType()) {
+		case EWeaponType::EWT_AssaultRifle:
+			SectionName = FName("Rifle");
+			break;
+		}
+		AnimInstance->Montage_JumpToSection(SectionName);
+	}
+}
+
 void AVortexCharacter::PlayElimMontage() {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && ElimMontage) {
@@ -125,6 +142,9 @@ void AVortexCharacter::Elim() {
 }
 
 void AVortexCharacter::MulticastElim_Implementation() {
+	if (VortexPlayerController) {
+		VortexPlayerController->SetHUDWeaponAmmo(0);
+	}
 	bElimmed = true;
 	PlayElimMontage();
 	//start dissolve
@@ -231,6 +251,8 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		// Fire
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AVortexCharacter::Fire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AVortexCharacter::Fire);
+		// Reload
+		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AVortexCharacter::ReloadButtonPressed);
 	}
 	else
 	{
@@ -306,6 +328,12 @@ void AVortexCharacter::Crouching(const FInputActionValue& Value) {
 		Super::UnCrouch();
 	}else {
 		Super::Crouch();
+	}
+}
+
+void AVortexCharacter::ReloadButtonPressed(const FInputActionValue& Value) {
+	if (Combat) {
+		Combat->Reload();
 	}
 }
 
@@ -521,7 +549,10 @@ FVector AVortexCharacter::GetHitTarget() const {
 	return Combat->HitTarget;
 }
 
-
+ECombatState AVortexCharacter::GetCombatState() const {
+	if (Combat==nullptr) return ECombatState::ECS_Max;
+	return Combat->CombatState;
+}
 
 
 

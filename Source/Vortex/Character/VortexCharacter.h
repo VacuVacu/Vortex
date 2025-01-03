@@ -8,6 +8,7 @@
 #include "Logging/LogMacros.h"
 #include "Vortex/VortexTypes/TurningInPlace.h"
 #include "Vortex/Interfaces/InteractWithCrosshairsInterface.h"
+#include "Vortex/VortexTypes/CombatState.h"
 #include "VortexCharacter.generated.h"
 
 class AVortexPlayerState;
@@ -41,6 +42,8 @@ public:
 
 	void PlayFireMontage(bool bAiming);
 
+	void PlayReloadMontage();
+
 	void PlayElimMontage();
 
 	virtual void OnRep_ReplicatedMovement() override;
@@ -60,6 +63,7 @@ protected:
 	void Look(const FInputActionValue& Value);
 	void Equip(const FInputActionValue& Value);
 	void Crouching(const FInputActionValue& Value);
+	void ReloadButtonPressed(const FInputActionValue& Value);
 	void Aim(const FInputActionValue& Value);
 	void AimOffset(float DeltaTime);
 	void SimProxiesTurn();
@@ -97,6 +101,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* FireAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ReloadAction;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 
@@ -109,11 +116,14 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_OverlappingWeapon)
 	AWeapon* OverlappingWeapon;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCombatComponent* Combat;
 
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* FireWeaponMontage;
+	
+	UPROPERTY(EditAnywhere, Category="Combat")
+	UAnimMontage* ReloadMontage;
 
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* HitReactMontage;
@@ -213,6 +223,7 @@ public:
 	FORCEINLINE bool IsElimmed() const { return bElimmed; }
 	FORCEINLINE float GetHealth() const { return Health; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
+	ECombatState GetCombatState() const;
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
 };

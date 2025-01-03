@@ -53,3 +53,23 @@ void AVortexPlayerController::SetHUDDefeats(int32 Defeats) {
 	}
 }
 
+void AVortexPlayerController::SetHUDWeaponAmmo(int32 Ammo) {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->WeaponAmmoAmount;
+	if (bHUDValid) {
+		FString AmmoText = FString::Printf(TEXT(" %d"), Ammo);
+		VortexHUD->CharacterOverlay->WeaponAmmoAmount->SetText(FText::FromString(AmmoText));
+	}
+}
+
+void AVortexPlayerController::SetHUDCarriedAmmo(int32 Ammo) {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->CarriedAmmoAmount;
+	if (bHUDValid) {
+		FString AmmoText = FString::Printf(TEXT(" %d"), Ammo);
+		VortexHUD->CharacterOverlay->CarriedAmmoAmount->SetText(FText::FromString(AmmoText));
+	}
+}
+

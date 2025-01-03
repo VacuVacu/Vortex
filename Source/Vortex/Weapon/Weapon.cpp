@@ -9,6 +9,7 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Net/UnrealNetwork.h"
 #include "Vortex/Character/VortexCharacter.h"
+#include "Vortex/PlayController/VortexPlayerController.h"
 
 // Sets default values
 AWeapon::AWeapon()
@@ -39,9 +40,20 @@ void AWeapon::ShowPickupWidget(bool bShowWidget) {
 	}
 }
 
+void AWeapon::OnRep_Owner() {
+	Super::OnRep_Owner();
+	if (Owner == nullptr) {
+		VortexOwnerController = nullptr;
+		VortexOwnerCharacter = nullptr;
+	}else {
+		SetHUDAmmo();
+	}
+}
+
 void AWeapon::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWeapon, WeaponState);
+	DOREPLIFETIME(AWeapon, Ammo);
 }
 
 // Called when the game starts or when spawned
@@ -75,6 +87,25 @@ void AWeapon::OnSpheraEndOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 	if (VortexCharacter) {
 		VortexCharacter->SetOverlappingWeapon(nullptr);
 	}
+}
+
+void AWeapon::SetHUDAmmo() {
+	VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(GetOwner()) : VortexOwnerCharacter;
+	if (VortexOwnerCharacter) {
+		VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(VortexOwnerCharacter->Controller) : VortexOwnerController;
+		if (VortexOwnerController) {
+			VortexOwnerController->SetHUDWeaponAmmo(Ammo);
+		}
+	}
+}
+
+void AWeapon::SpendRound() {
+	Ammo = FMath::Clamp(Ammo - 1, 0, MagCapacity);
+	SetHUDAmmo();
+}
+
+void AWeapon::OnRep_Ammo() {
+	SetHUDAmmo();
 }
 
 void AWeapon::OnRep_WeaponState() {
@@ -134,6 +165,7 @@ void AWeapon::Fire(const FVector& HitTarget) {
 			}
 		}
 	}
+	SpendRound();
 }
 
 void AWeapon::Dropped() {
@@ -141,6 +173,11 @@ void AWeapon::Dropped() {
 	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
 	WeaponMesh->DetachFromComponent(DetachRules);
 	SetOwner(nullptr);
+	VortexOwnerCharacter = nullptr;
+	VortexOwnerController = nullptr;
 }
 
+bool AWeapon::IsEmpty() {
+	return Ammo <= 0;
+}
 

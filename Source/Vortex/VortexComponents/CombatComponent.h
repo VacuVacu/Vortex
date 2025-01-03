@@ -6,7 +6,10 @@
 #include "Components/ActorComponent.h"
 #include "Logging/LogMacros.h"
 #include "Vortex/HUD/VortexHUD.h"
+#include "Vortex/VortexTypes/CombatState.h"
+#include "Vortex/Weapon/WeaponTypes.h"
 #include "CombatComponent.generated.h"
+
 
 #define TRACE_LENGTH 80000.f
 
@@ -29,6 +32,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	void EquipWeapon(AWeapon* WeaponToEquip);
+	void Reload();
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -53,7 +57,13 @@ protected:
 	void TraceUnderCrossHairs(FHitResult& TraceHitResult);
 
 	void SetHUDCorsshairs(float DeltaTime);
-	
+
+	UFUNCTION(Server, Reliable)
+	void ServerReload();
+
+	void HandleReload();
+	UFUNCTION(BlueprintCallable)
+	void FinishReloading();
 private:
 	UPROPERTY()
 	AVortexCharacter* Character;
@@ -99,8 +109,33 @@ private:
 
 	void StartFireTimer();
 	void FireTimerFinished();
+
+	bool CanFire();
+
+	// carried ammo for currently equipped weapon
+	UPROPERTY(ReplicatedUsing=OnRep_CarriedAmmo)
+	int32 CarriedAmmo;
+
+	UFUNCTION()
+	void OnRep_CarriedAmmo();
+	
+	TMap<EWeaponType, int32> CarriedAmmoMap;
+	UPROPERTY(EditAnywhere)
+	int32 StartingARAmmo = 30;
+	void InitializeCarriedAmmo();
+
+	UPROPERTY(ReplicatedUsing=OnRep_CombatState)
+	ECombatState CombatState = ECombatState::ECS_Unoccupied;
+
+	UFUNCTION()
+	void OnRep_CombatState();
+	
 public:	
 	
 		
 };
+
+
+
+
 

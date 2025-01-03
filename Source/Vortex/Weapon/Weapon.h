@@ -4,8 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "WeaponTypes.h"
+#include "Net/UnrealNetwork.h"
 #include "Weapon.generated.h"
 
+class AVortexPlayerController;
+class AVortexCharacter;
 class ACasing;
 class UWidgetComponent;
 class USphereComponent;
@@ -20,18 +24,19 @@ enum class EWeaponState: uint8 {
 };
 
 UCLASS()
-class VORTEX_API AWeapon : public AActor
-{
+class VORTEX_API AWeapon : public AActor {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	AWeapon();
 	virtual void Tick(float DeltaTime) override;
 	void ShowPickupWidget(bool bShowWidget);
+	virtual void OnRep_Owner() override;
+	void SetHUDAmmo();
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Fire(const FVector& HitTarget);
 	void Dropped();
-	
+
 	//Texture for crosshairs
 	UPROPERTY(EditAnywhere, Category="CrossHairs")
 	UTexture2D* CrosshairsCenter;
@@ -59,12 +64,14 @@ protected:
 	virtual void BeginPlay() override;
 
 	UFUNCTION()
-	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                             UPrimitiveComponent* OtherComp,
+	                             int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
-	void OnSpheraEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex);
+	void OnSpheraEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                        UPrimitiveComponent* OtherComp,
+	                        int32 OtherBodyIndex);
 
 private:
 	UPROPERTY(VisibleAnywhere, Category="Weapon")
@@ -73,7 +80,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category="Weapon")
 	USphereComponent* AreaSphere;
 
-	UPROPERTY(ReplicatedUsing=OnRep_WeaponState ,VisibleAnywhere, Category="Weapon")
+	UPROPERTY(ReplicatedUsing=OnRep_WeaponState, VisibleAnywhere, Category="Weapon")
 	EWeaponState WeaponState;
 
 	UPROPERTY(VisibleAnywhere, Category="Weapon")
@@ -84,15 +91,34 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ACasing> CasingClass;
-	
+
+	UPROPERTY(EditAnywhere, ReplicatedUsing=OnRep_Ammo)
+	int32 Ammo;
+	UFUNCTION()
+	void OnRep_Ammo();
+
+	void SpendRound();
+
+	UPROPERTY(EditAnywhere)
+	int32 MagCapacity;
+
 	UFUNCTION()
 	void OnRep_WeaponState();
-	
-public:	
-	void SetWeaponState(EWeaponState State);
-	FORCEINLINE USphereComponent* GetAreaSphere() const {return AreaSphere;}
-	FORCEINLINE USkeletalMeshComponent* GetWeaponMesh() const {return WeaponMesh;}
-	FORCEINLINE float GetZoomedFOV() const {return ZoomedFOV;}
-	FORCEINLINE float GetZoomedInterpSpeed() const {return ZoomedInterpSpeed;}
-};
 
+	UPROPERTY()
+	AVortexCharacter* VortexOwnerCharacter;
+	UPROPERTY()
+	AVortexPlayerController* VortexOwnerController;
+
+	UPROPERTY(EditAnywhere)
+	EWeaponType WeaponType;
+
+public:
+	void SetWeaponState(EWeaponState State);
+	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
+	FORCEINLINE USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	FORCEINLINE float GetZoomedFOV() const { return ZoomedFOV; }
+	FORCEINLINE float GetZoomedInterpSpeed() const { return ZoomedInterpSpeed; }
+	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponType; }
+	bool IsEmpty();
+};
