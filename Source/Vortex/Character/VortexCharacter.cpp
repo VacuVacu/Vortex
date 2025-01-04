@@ -28,15 +28,14 @@
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
 
-AVortexCharacter::AVortexCharacter()
-{
+AVortexCharacter::AVortexCharacter() {
 	PrimaryActorTick.bCanEverTick = true;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 500.0f;
 	CameraBoom->bUsePawnControlRotation = true;
-	
+
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
@@ -46,21 +45,21 @@ AVortexCharacter::AVortexCharacter()
 
 	OverheadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadWidget"));
 	OverheadWidget->SetupAttachment(RootComponent);
-	
+
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
-	
+
 	Combat = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
-	
+
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECollisionResponse::ECR_Block);
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 850.f, 0.0f);
-	
+
 	NetUpdateFrequency = 66.f;
 	MinNetUpdateFrequency = 33.f;
 
@@ -125,6 +124,7 @@ void AVortexCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(AVortexCharacter, OverlappingWeapon, COND_OwnerOnly);
 	DOREPLIFETIME(AVortexCharacter, Health);
+	DOREPLIFETIME(AVortexCharacter, bDisableGameplay);
 }
 
 void AVortexCharacter::OnRep_ReplicatedMovement() {
@@ -159,9 +159,11 @@ void AVortexCharacter::MulticastElim_Implementation() {
 	//disable character movement
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
-	if (VortexPlayerController) {
-		DisableInput(VortexPlayerController);
+	bDisableGameplay = true;
+	if (Combat) {
+		Combat->FireButtonPressed(false);
 	}
+	
 	//disable collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -170,7 +172,8 @@ void AVortexCharacter::MulticastElim_Implementation() {
 	if (ElimBotEffect) {
 		FVector ElimBotSpawnLocation = GetActorLocation();
 		ElimBotSpawnLocation.Z += 200.f;
-		ElimBotComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ElimBotEffect, ElimBotSpawnLocation, GetActorRotation());
+		ElimBotComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ElimBotEffect, ElimBotSpawnLocation,
+		                                                            GetActorRotation());
 	}
 	if (ElimBotSound) {
 		UGameplayStatics::SpawnSoundAtLocation(this, ElimBotSound, GetActorLocation());
@@ -190,16 +193,19 @@ void AVortexCharacter::Destroyed() {
 	if (ElimBotComponent) {
 		ElimBotComponent->DestroyComponent();
 	}
+	AVortexGameMode* VortexGameMode = Cast<AVortexGameMode>(UGameplayStatics::GetGameMode(this));
+	bool bMatchNotInProgress = VortexGameMode && VortexGameMode->GetMatchState() != MatchState::InProgress;
+	if (Combat && Combat->EquippedWeapon && bMatchNotInProgress) {
+		Combat->EquippedWeapon->Destroy();
+	}
 }
 
-void AVortexCharacter::BeginPlay()
-{
+void AVortexCharacter::BeginPlay() {
 	Super::BeginPlay();
 
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController())) {
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
+			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())) {
 			Subsystem->AddMappingContext(CharacterMappingContext, 0);
 		}
 	}
@@ -209,29 +215,35 @@ void AVortexCharacter::BeginPlay()
 	if (HasAuthority()) {
 		OnTakeAnyDamage.AddDynamic(this, &ThisClass::AVortexCharacter::ReceiveDamage);
 	}
-
 }
 
-void AVortexCharacter::Tick(float DeltaTime)
-{
+void AVortexCharacter::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
+
+	RotateInPlace(DeltaTime);
+	HideCameraIfCharacterClose();
+	PollInit();
+}
+
+void AVortexCharacter::RotateInPlace(float DeltaTime) {
+	if (bDisableGameplay) { return; }
 	if (GetLocalRole() > ROLE_SimulatedProxy && IsLocallyControlled()) {
+		bUseControllerRotationRoll = false;
+		TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 		AimOffset(DeltaTime);
-	}else {
+	}
+	else {
 		TimeSinceLastMovementReplication += DeltaTime;
 		if (TimeSinceLastMovementReplication > 0.25f) {
 			OnRep_ReplicatedMovement();
 		}
 		CalculateAO_Pitch();
 	}
-	HideCameraIfCharacterClose();
-	PollInit();
 }
 
-void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
+void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	
+
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		// Jumping
@@ -252,37 +264,41 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AVortexCharacter::Fire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AVortexCharacter::Fire);
 		// Reload
-		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AVortexCharacter::ReloadButtonPressed);
+		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this,
+		                                   &AVortexCharacter::ReloadButtonPressed);
 	}
-	else
-	{
-		UE_LOG(LogVortexCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
-		
+	else {
+		UE_LOG(LogVortexCharacter, Error,
+		       TEXT(
+			       "'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."
+		       ), *GetNameSafe(this));
 	}
 }
 
 void AVortexCharacter::Jump() {
+	if (bDisableGameplay) return;
 	if (bIsCrouched) {
 		UnCrouch();
-	}else {
+	}
+	else {
 		Super::Jump();
 	}
 }
 
-void AVortexCharacter::Move(const FInputActionValue& Value)
-{
+void AVortexCharacter::Move(const FInputActionValue& Value) {
+	UE_LOG(LogVortexCharacter, Error, TEXT("Move"));
+	if (bDisableGameplay) return;
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
-	{
+	if (Controller != nullptr) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
 		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	
+
 		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
@@ -292,13 +308,11 @@ void AVortexCharacter::Move(const FInputActionValue& Value)
 	}
 }
 
-void AVortexCharacter::Look(const FInputActionValue& Value)
-{
+void AVortexCharacter::Look(const FInputActionValue& Value) {
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
-	{
+	if (Controller != nullptr) {
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
@@ -306,11 +320,13 @@ void AVortexCharacter::Look(const FInputActionValue& Value)
 }
 
 void AVortexCharacter::Equip(const FInputActionValue& Value) {
+	if (bDisableGameplay) return;
 	bool bEquip = Value.Get<bool>();
 	if (Combat) {
 		if (HasAuthority()) {
 			Combat->EquipWeapon(OverlappingWeapon);
-		}else {
+		}
+		else {
 			ServerEquipButtonPressed();
 			// UE_LOG(LogVortexCharacter, Error, TEXT("EquipWeapon %p"), OverlappingWeapon);
 		}
@@ -324,20 +340,24 @@ void AVortexCharacter::ServerEquipButtonPressed_Implementation() {
 }
 
 void AVortexCharacter::Crouching(const FInputActionValue& Value) {
+	if (bDisableGameplay) return;
 	if (bIsCrouched) {
 		Super::UnCrouch();
-	}else {
+	}
+	else {
 		Super::Crouch();
 	}
 }
 
 void AVortexCharacter::ReloadButtonPressed(const FInputActionValue& Value) {
+	if (bDisableGameplay) return;
 	if (Combat) {
 		Combat->Reload();
 	}
 }
 
 void AVortexCharacter::Aim(const FInputActionValue& Value) {
+	if (bDisableGameplay) return;
 	bool bAim = Value.Get<bool>();
 	if (Combat) {
 		Combat->SetAiming(bAim);
@@ -345,6 +365,7 @@ void AVortexCharacter::Aim(const FInputActionValue& Value) {
 }
 
 void AVortexCharacter::Fire(const FInputActionValue& Value) {
+	if (bDisableGameplay) return;
 	bool bFire = Value.Get<bool>();
 	if (Combat) {
 		Combat->FireButtonPressed(bFire);
@@ -362,15 +383,16 @@ void AVortexCharacter::CalculateAO_Pitch() {
 }
 
 void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
-	AController* InstigatedController, AActor* DamageCauser) {
-
+                                     AController* InstigatedController, AActor* DamageCauser) {
 	Health = FMath::Clamp(Health - Damage, 0.0f, MaxHealth);
 	UpdateHUDHealth();
 	PlayHitReactMontage();
 	if (Health == 0.0f) {
 		AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
 		if (VortexGameMode) {
-			VortexPlayerController = VortexPlayerController == nullptr ? Cast<AVortexPlayerController>(Controller) : VortexPlayerController;
+			VortexPlayerController = VortexPlayerController == nullptr
+				                         ? Cast<AVortexPlayerController>(Controller)
+				                         : VortexPlayerController;
 			AVortexPlayerController* AttackerController = Cast<AVortexPlayerController>(InstigatedController);
 			VortexGameMode->PlayerEliminated(this, VortexPlayerController, AttackerController);
 		}
@@ -384,7 +406,7 @@ float AVortexCharacter::CalculateSpeed() {
 }
 
 void AVortexCharacter::AimOffset(float DeltaTime) {
-	if (Combat && Combat->EquippedWeapon==nullptr) {
+	if (Combat && Combat->EquippedWeapon == nullptr) {
 		return;
 	}
 	float Speed = CalculateSpeed();
@@ -413,7 +435,7 @@ void AVortexCharacter::AimOffset(float DeltaTime) {
 }
 
 void AVortexCharacter::SimProxiesTurn() {
-	if (Combat == nullptr || Combat->EquippedWeapon == nullptr) {return;}
+	if (Combat == nullptr || Combat->EquippedWeapon == nullptr) { return; }
 	bRotateRootBone = false;
 	float Speed = CalculateSpeed();
 	if (Speed > 0.f) {
@@ -427,7 +449,8 @@ void AVortexCharacter::SimProxiesTurn() {
 	if (FMath::Abs(ProxyYaw) > TurnThreshold) {
 		if (ProxyYaw > TurnThreshold) {
 			TurningInPlace = ETurningInPlace::ETIP_Right;
-		}else if (ProxyYaw < -TurnThreshold) {
+		}
+		else if (ProxyYaw < -TurnThreshold) {
 			TurningInPlace = ETurningInPlace::ETIP_Left;
 		}
 		else {
@@ -441,7 +464,8 @@ void AVortexCharacter::SimProxiesTurn() {
 void AVortexCharacter::TurnInPlace(float DeltaTime) {
 	if (AO_Yaw > 90.f) {
 		TurningInPlace = ETurningInPlace::ETIP_Right;
-	}else if (AO_Yaw < -90.f) {
+	}
+	else if (AO_Yaw < -90.f) {
 		TurningInPlace = ETurningInPlace::ETIP_Left;
 	}
 	if (TurningInPlace != ETurningInPlace::ETIP_NotTurning) {
@@ -463,7 +487,8 @@ void AVortexCharacter::HideCameraIfCharacterClose() {
 		if (Combat && Combat->EquippedWeapon && Combat->EquippedWeapon->GetWeaponMesh()) {
 			Combat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = true;
 		}
-	}else {
+	}
+	else {
 		GetMesh()->SetVisibility(true);
 		if (Combat && Combat->EquippedWeapon && Combat->EquippedWeapon->GetWeaponMesh()) {
 			Combat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = false;
@@ -477,7 +502,9 @@ void AVortexCharacter::OnRep_Health() {
 }
 
 void AVortexCharacter::UpdateHUDHealth() {
-	VortexPlayerController = VortexPlayerController == nullptr ? Cast<AVortexPlayerController>(Controller) : VortexPlayerController;
+	VortexPlayerController = VortexPlayerController == nullptr
+		                         ? Cast<AVortexPlayerController>(Controller)
+		                         : VortexPlayerController;
 	if (VortexPlayerController) {
 		VortexPlayerController->SetHUDHealth(Health, MaxHealth);
 	}
@@ -510,8 +537,8 @@ void AVortexCharacter::StartDissolve() {
 void AVortexCharacter::SetOverlappingWeapon(AWeapon* Weapon) {
 	if (OverlappingWeapon) {
 		OverlappingWeapon->ShowPickupWidget(false);
-	}  
-	
+	}
+
 	OverlappingWeapon = Weapon;
 	if (IsLocallyControlled()) {
 		if (OverlappingWeapon) {
@@ -538,23 +565,18 @@ bool AVortexCharacter::IsAiming() {
 }
 
 AWeapon* AVortexCharacter::GetEquippedWeapon() {
-	if (Combat==nullptr) {
+	if (Combat == nullptr) {
 		return nullptr;
 	}
 	return Combat->EquippedWeapon;
 }
 
 FVector AVortexCharacter::GetHitTarget() const {
-	if (Combat==nullptr) return FVector();
+	if (Combat == nullptr) return FVector();
 	return Combat->HitTarget;
 }
 
 ECombatState AVortexCharacter::GetCombatState() const {
-	if (Combat==nullptr) return ECombatState::ECS_Max;
+	if (Combat == nullptr) return ECombatState::ECS_Max;
 	return Combat->CombatState;
 }
-
-
-
-
-

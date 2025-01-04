@@ -4,11 +4,10 @@
 #include "VortexHUD.h"
 #include "CharacterOverlay.h"
 #include "Blueprint/UserWidget.h"
+#include "Vortex/HUD/Announcement.h"
 
 void AVortexHUD::BeginPlay() {
 	Super::BeginPlay();
-
-	AddCharacterToOverlay();
 }
 
 void AVortexHUD::AddCharacterToOverlay() {
@@ -16,6 +15,14 @@ void AVortexHUD::AddCharacterToOverlay() {
 	if (PlayerController && CharacterOverlayClass) {
 		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
 		CharacterOverlay->AddToViewport();
+	}
+}
+
+void AVortexHUD::AddAnnouncement() {
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (PlayerController && AnnouncementClass) {
+		Announcement = CreateWidget<UAnnouncement>(PlayerController, AnnouncementClass);
+		Announcement->AddToViewport();
 	}
 }
 

@@ -33,6 +33,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	void EquipWeapon(AWeapon* WeaponToEquip);
 	void Reload();
+	void FireButtonPressed(bool bPressed);
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -45,8 +46,6 @@ protected:
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
 	void Fire();
-
-	void FireButtonPressed(bool bPressed);
 
 	UFUNCTION(Server, Reliable)
 	void ServerFire(const FVector_NetQuantize& TraceHitTarget);

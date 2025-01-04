@@ -8,6 +8,7 @@
 
 class UCharacterOverlay;
 class UTexture2D;
+class UAnnouncement;
 
 USTRUCT(BlueprintType)
 struct FHUDPackage {
@@ -29,15 +30,24 @@ class VORTEX_API AVortexHUD : public AHUD
 
 public:
 	virtual void DrawHUD() override;
-
+	void AddCharacterToOverlay();
+	
 	UPROPERTY(EditAnywhere, Category="Player States")
 	TSubclassOf<UUserWidget> CharacterOverlayClass;
-	
+
+	UPROPERTY()
 	UCharacterOverlay* CharacterOverlay;
+
+	UPROPERTY(EditAnywhere, Category="Announcement")
+	TSubclassOf<UUserWidget> AnnouncementClass;
+
+	UPROPERTY()
+	UAnnouncement* Announcement;
+
+	void AddAnnouncement();
 
 protected:
 	virtual void BeginPlay() override;
-	void AddCharacterToOverlay();
 	
 private:
 	FHUDPackage HUDPackage;

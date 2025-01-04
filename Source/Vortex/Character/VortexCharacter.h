@@ -54,6 +54,9 @@ public:
 
 	virtual void Destroyed() override;
 
+	UPROPERTY(Replicated)
+	bool bDisableGameplay = false;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -73,8 +76,8 @@ protected:
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
 	                   AController* InstigatedController, AActor* DamageCauser);
 	void UpdateHUDHealth();
-	
 	void PollInit();
+	void RotateInPlace(float DeltaTime);
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -223,6 +226,8 @@ public:
 	FORCEINLINE bool IsElimmed() const { return bElimmed; }
 	FORCEINLINE float GetHealth() const { return Health; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
+	FORCEINLINE UCombatComponent* GetCombat() const { return Combat; }
+	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
 	ECombatState GetCombatState() const;
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
