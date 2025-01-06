@@ -257,7 +257,9 @@ void AVortexPlayerController::OnRep_MatchState() {
 void AVortexPlayerController::HandleMatchHasStarted() {
 	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
 	if (VortexHUD) {
-		VortexHUD->AddCharacterToOverlay();
+		if (VortexHUD->CharacterOverlay==nullptr) {
+			VortexHUD->AddCharacterToOverlay();
+		}
 		if (VortexHUD->Announcement) {
 			VortexHUD->Announcement->SetVisibility(ESlateVisibility::Hidden);
 		}

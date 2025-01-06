@@ -97,6 +97,9 @@ void AVortexCharacter::PlayReloadMontage() {
 		case EWeaponType::EWT_AssaultRifle:
 			SectionName = FName("Rifle");
 			break;
+		case EWeaponType::EWT_RocketLauncher:
+			SectionName = FName("Rifle");
+			break;
 		}
 		AnimInstance->Montage_JumpToSection(SectionName);
 	}
@@ -160,6 +163,7 @@ void AVortexCharacter::MulticastElim_Implementation() {
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
 	bDisableGameplay = true;
+	GetCharacterMovement()->DisableMovement();
 	if (Combat) {
 		Combat->FireButtonPressed(false);
 	}

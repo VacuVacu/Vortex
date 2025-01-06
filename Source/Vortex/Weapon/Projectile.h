@@ -26,20 +26,22 @@ protected:
 
 	UFUNCTION()
 	virtual void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& HitResult);
-
-private:
 	UPROPERTY(EditAnywhere)
 	UBoxComponent* CollisionBox;
-	UPROPERTY(VisibleAnywhere)
-	UProjectileMovementComponent* ProjectileMovementComponent;
-	UPROPERTY(EditAnywhere)
-	UParticleSystem* Tracer;
-	UPROPERTY()
-	UParticleSystemComponent* TracerComponent;
 	UPROPERTY(EditAnywhere)
 	UParticleSystem* ImpactParticles;
 	UPROPERTY(EditAnywhere)
 	USoundCue* ImpactSound;
+	UPROPERTY(VisibleAnywhere)
+	UProjectileMovementComponent* ProjectileMovementComponent;
+	
+private:
+	
+	UPROPERTY(EditAnywhere)
+	UParticleSystem* Tracer;
+	UPROPERTY()
+	UParticleSystemComponent* TracerComponent;
+
 
 public:	
 
