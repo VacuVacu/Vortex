@@ -11,8 +11,6 @@
 #include "CombatComponent.generated.h"
 
 
-#define TRACE_LENGTH 80000.f
-
 class AVortexHUD;
 class AVortexPlayerController;
 class AWeapon;
@@ -126,6 +124,21 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	int32 StartingRocketAmmo = 0;
+
+	UPROPERTY(EditAnywhere)
+	int32 StartingPistolAmmo = 0;
+
+	UPROPERTY(EditAnywhere)
+	int32 StartingSMGAmmo = 0;
+	
+	UPROPERTY(EditAnywhere)
+	int32 StartingShotgunAmmo = 0;
+
+	UPROPERTY(EditAnywhere)
+	int32 StartingSniperAmmo = 0;
+
+	UPROPERTY(EditAnywhere)
+	int32 StartingGrenadeLauncherAmmo = 0;
 	
 	void InitializeCarriedAmmo();
 
