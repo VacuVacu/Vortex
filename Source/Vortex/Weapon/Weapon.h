@@ -39,6 +39,11 @@ public:
 	void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
 
+	/*
+	 * enable or disable custom depth
+	 */
+	void EnableCustomDepth(bool bEnable);
+
 	//Texture for crosshairs
 	UPROPERTY(EditAnywhere, Category="CrossHairs")
 	UTexture2D* CrosshairsCenter;
@@ -128,4 +133,7 @@ public:
 	FORCEINLINE int32 GetAmmo() const { return Ammo; }
 	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
 	bool IsEmpty();
+	bool IsFull();
 };
+
+

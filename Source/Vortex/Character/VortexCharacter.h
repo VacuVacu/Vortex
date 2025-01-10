@@ -46,6 +46,8 @@ public:
 
 	void PlayElimMontage();
 
+	void PlayThrowGrenadeMontage();
+
 	virtual void OnRep_ReplicatedMovement() override;
 
 	void Elim();
@@ -74,6 +76,7 @@ protected:
 	void AimOffset(float DeltaTime);
 	void SimProxiesTurn();
 	void Fire(const FInputActionValue& Value);
+	void GrenadeButtonPressed(const FInputActionValue& Value);
 	void CalculateAO_Pitch();
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
@@ -81,6 +84,7 @@ protected:
 	void UpdateHUDHealth();
 	void PollInit();
 	void RotateInPlace(float DeltaTime);
+	void PlayHitReactMontage();
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -110,6 +114,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* ReloadAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* GrenadeAction;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 
@@ -137,6 +144,9 @@ private:
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* ElimMontage;
 
+	UPROPERTY(EditAnywhere, Category="Combat")
+	UAnimMontage* ThrowGrenadeMontage;
+
 	UPROPERTY(EditAnywhere)
 	float CameraThreshold = 200.f;
 
@@ -162,7 +172,6 @@ private:
 	void ServerEquipButtonPressed();
 
 	void HideCameraIfCharacterClose();
-	void PlayHitReactMontage();
 	float CalculateSpeed();
 
 	/**
@@ -217,6 +226,13 @@ private:
 
 	UPROPERTY()
 	AVortexPlayerState* VortexPlayerState = nullptr;
+
+	/*
+	 * Grenade
+	 */
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* AttachedGrenade;
+	
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);
 	bool IsWeaponEquipped();
@@ -231,7 +247,11 @@ public:
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 	FORCEINLINE UCombatComponent* GetCombat() const { return Combat; }
 	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
+	FORCEINLINE UAnimMontage* GetReloadMontage() const { return ReloadMontage; }
+	FORCEINLINE UStaticMeshComponent* GetAttachedGrenade() const { return AttachedGrenade; }
 	ECombatState GetCombatState() const;
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
 };
+
+

@@ -4,7 +4,6 @@
 #include "VortexPlayerController.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
-#include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "GameFramework/GameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
@@ -173,6 +172,18 @@ void AVortexPlayerController::SetHUDAnnouncementCountDown(float CountDownTime) {
 	}
 }
 
+void AVortexPlayerController::SetHUDGrenades(int32 Grenades) {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->GrenadesText;
+	if (bHUDValid) {
+		FString GrenadeText = FString::Printf(TEXT(" %d"), Grenades);
+		VortexHUD->CharacterOverlay->GrenadesText->SetText(FText::FromString(GrenadeText));
+	}else {
+		HUDGrenades = Grenades;
+	}
+}
+
 void AVortexPlayerController::SetHUDTime() {
 	float TimeLeft = 0.f;
 	if (MatchState == MatchState::WaitingToStart)
@@ -207,6 +218,10 @@ void AVortexPlayerController::PollInit() {
 				SetHUDHealth(HUDHealth, HUDMaxHealth);
 				SetHUDScore(HUDScore);
 				SetHUDDefeats(HUDDefeats);
+				AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(GetPawn());
+				if (VortexCharacter && VortexCharacter->GetCombat()) {
+					SetHUDGrenades(VortexCharacter->GetCombat()->GetGrenades());
+				}
 			}
 		}
 	}

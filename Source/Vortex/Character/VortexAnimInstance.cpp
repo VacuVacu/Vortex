@@ -67,7 +67,7 @@ void UVortexAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 			RightHandRotation = FMath::RInterpTo(RightHandRotation,LookAtRotation,DeltaSeconds,30.f);
 		}
 	}
-	bUseFABRIC = VortexCharacter->GetCombatState() != ECombatState::ECS_Reloading;
-	bUseAimOffsets = VortexCharacter->GetCombatState() != ECombatState::ECS_Reloading && !VortexCharacter->GetDisableGameplay();
-	bTransformRightHand = VortexCharacter->GetCombatState() != ECombatState::ECS_Reloading && !VortexCharacter->GetDisableGameplay();
+	bUseFABRIC = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied;
+	bUseAimOffsets = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied && !VortexCharacter->GetDisableGameplay();
+	bTransformRightHand = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied && !VortexCharacter->GetDisableGameplay();
 }

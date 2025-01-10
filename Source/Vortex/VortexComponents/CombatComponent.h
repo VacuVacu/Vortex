@@ -11,6 +11,7 @@
 #include "CombatComponent.generated.h"
 
 
+class AProjectile;
 class AVortexHUD;
 class AVortexPlayerController;
 class AWeapon;
@@ -32,6 +33,20 @@ public:
 	void EquipWeapon(AWeapon* WeaponToEquip);
 	void Reload();
 	void FireButtonPressed(bool bPressed);
+
+	UFUNCTION(BlueprintCallable)
+	void ShutgunShellReload();
+
+	void JumpToShotgunEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void ThrowGrenadeFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void LaunchGrenade();
+
+	UFUNCTION(Server, Reliable)
+	void ServerLaunchGrenade(const FVector_NetQuantize& Target);
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -60,9 +75,37 @@ protected:
 
 	void HandleReload();
 	int32 AmountToReload();
+
+	void ThrowGrenade();
+
+	UFUNCTION(Server, Reliable)
+	void ServerThrowGrenade();
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AProjectile> GrenadeClass;
 	
 	UFUNCTION(BlueprintCallable)
 	void FinishReloading();
+
+	void DropEquippedWeapon();
+
+	void AttachActorToRightHand(AActor* ActorToAttach);
+
+	void AttachActorToLeftHand(AActor* ActorToAttach);
+
+	void UpdateCarriedAmmo();
+
+	void PlayEquipWeaponSound();
+
+	void ReloadEmptyWeapon();
+
+	void ShowAttachedGrenade(bool bShowGrenade);
+
+	UFUNCTION()
+	void OnRep_Grenades();
+
+	void UpdateHUDGrenades();
+
 private:
 	UPROPERTY()
 	AVortexCharacter* Character;
@@ -139,6 +182,12 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	int32 StartingGrenadeLauncherAmmo = 0;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Grenades)
+	int32 Grenades = 4;
+	
+	UPROPERTY(EditAnywhere)
+	int32 MaxGrenades = 4;
 	
 	void InitializeCarriedAmmo();
 
@@ -149,11 +198,15 @@ private:
 	void OnRep_CombatState();
 
 	void UpdateAmmoValues();
+	void UpdateShotgunAmmoValues();
 	
 public:	
-	
+	FORCEINLINE int32 GetGrenades() const { return Grenades; }
 		
 };
+
+
+
 
 
 

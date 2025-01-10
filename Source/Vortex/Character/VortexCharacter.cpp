@@ -64,6 +64,10 @@ AVortexCharacter::AVortexCharacter() {
 	MinNetUpdateFrequency = 33.f;
 
 	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
+
+	AttachedGrenade = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AttachedGrenade"));
+	AttachedGrenade->SetupAttachment(GetMesh(), FName("GrenadeSocket"));
+	AttachedGrenade->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AVortexCharacter::PostInitializeComponents() {
@@ -115,6 +119,8 @@ void AVortexCharacter::PlayReloadMontage() {
 		case EWeaponType::EWT_GrenadeLauncher:
 			SectionName = FName("GrenadeLauncher");
 			break;
+		case EWeaponType::EWT_MAX:
+			break;
 		}
 		AnimInstance->Montage_JumpToSection(SectionName);
 	}
@@ -124,6 +130,13 @@ void AVortexCharacter::PlayElimMontage() {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && ElimMontage) {
 		AnimInstance->Montage_Play(ElimMontage);
+	}
+}
+
+void AVortexCharacter::PlayThrowGrenadeMontage() {
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && ThrowGrenadeMontage) {
+		AnimInstance->Montage_Play(ThrowGrenadeMontage);
 	}
 }
 
@@ -239,6 +252,9 @@ void AVortexCharacter::BeginPlay() {
 	if (HasAuthority()) {
 		OnTakeAnyDamage.AddDynamic(this, &ThisClass::AVortexCharacter::ReceiveDamage);
 	}
+	if (AttachedGrenade) {
+		AttachedGrenade->SetVisibility(false);
+	}
 }
 
 void AVortexCharacter::Tick(float DeltaTime) {
@@ -290,6 +306,8 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		// Reload
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this,
 		                                   &AVortexCharacter::ReloadButtonPressed);
+		//Throw Grenade
+		EnhancedInputComponent->BindAction(GrenadeAction, ETriggerEvent::Started, this,&AVortexCharacter::GrenadeButtonPressed);
 	}
 	else {
 		UE_LOG(LogVortexCharacter, Error,
@@ -396,6 +414,12 @@ void AVortexCharacter::Fire(const FInputActionValue& Value) {
 	}
 }
 
+void AVortexCharacter::GrenadeButtonPressed(const FInputActionValue& Value) {
+	if (Combat) {
+		Combat->ThrowGrenade();
+	}
+}
+
 void AVortexCharacter::CalculateAO_Pitch() {
 	AO_Pitch = GetBaseAimRotation().Pitch;
 	if (AO_Pitch > 90.f && !IsLocallyControlled()) {
@@ -408,6 +432,7 @@ void AVortexCharacter::CalculateAO_Pitch() {
 
 void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
                                      AController* InstigatedController, AActor* DamageCauser) {
+	if (bElimmed) return;
 	Health = FMath::Clamp(Health - Damage, 0.0f, MaxHealth);
 	UpdateHUDHealth();
 	PlayHitReactMontage();
