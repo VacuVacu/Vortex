@@ -86,9 +86,26 @@ void AVortexPlayerController::SetHUDHealth(float Health, float MaxHealth) {
 		VortexHUD->CharacterOverlay->HealthText->SetText(FText::FromString(HealthText));
 	}
 	else {
-		bInitializedCharacterOverlay = true;
+		bInitializeHealth = true;
 		HUDHealth = Health;
 		HUDMaxHealth = MaxHealth;
+	}
+}
+
+void AVortexPlayerController::SetHUDShield(float Shield, float MaxShield) {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->ShieldBar && VortexHUD->CharacterOverlay->ShieldText;
+	if (bHUDValid) {
+		const float HealthPercent = Shield / MaxShield;
+		VortexHUD->CharacterOverlay->ShieldBar->SetPercent(HealthPercent);
+		FString ShieldText = FString::Printf(TEXT("%d/%d"), FMath::CeilToInt(Shield), FMath::CeilToInt(MaxShield));
+		VortexHUD->CharacterOverlay->ShieldText->SetText(FText::FromString(ShieldText));
+	}
+	else {
+		bInitializeShield = true;
+		HUDShield = Shield;
+		HUDMaxShield = MaxShield;
 	}
 }
 
@@ -101,7 +118,7 @@ void AVortexPlayerController::SetHUDScore(float Score) {
 		VortexHUD->CharacterOverlay->ScoreAmount->SetText(FText::FromString(ScoreText));
 	}
 	else {
-		bInitializedCharacterOverlay = true;
+		bInitializeScore = true;
 		HUDScore = Score;
 	}
 }
@@ -115,7 +132,7 @@ void AVortexPlayerController::SetHUDDefeats(int32 Defeats) {
 		VortexHUD->CharacterOverlay->DefeatsAmount->SetText(FText::FromString(DefeatsText));
 	}
 	else {
-		bInitializedCharacterOverlay = true;
+		bInitializeDefeats = true;
 		HUDDefeats = Defeats;
 	}
 }
@@ -127,6 +144,9 @@ void AVortexPlayerController::SetHUDWeaponAmmo(int32 Ammo) {
 	if (bHUDValid) {
 		FString AmmoText = FString::Printf(TEXT(" %d"), Ammo);
 		VortexHUD->CharacterOverlay->WeaponAmmoAmount->SetText(FText::FromString(AmmoText));
+	}else {
+		bInitializeWeaponAmmo = true;
+		HUDWeaponAmmo = Ammo;
 	}
 }
 
@@ -137,6 +157,9 @@ void AVortexPlayerController::SetHUDCarriedAmmo(int32 Ammo) {
 	if (bHUDValid) {
 		FString AmmoText = FString::Printf(TEXT(" %d"), Ammo);
 		VortexHUD->CharacterOverlay->CarriedAmmoAmount->SetText(FText::FromString(AmmoText));
+	}else {
+		bInitializeCarriedAmmo = true;
+		HUDCarriedAmmo = Ammo;
 	}
 }
 
@@ -180,6 +203,7 @@ void AVortexPlayerController::SetHUDGrenades(int32 Grenades) {
 		FString GrenadeText = FString::Printf(TEXT(" %d"), Grenades);
 		VortexHUD->CharacterOverlay->GrenadesText->SetText(FText::FromString(GrenadeText));
 	}else {
+		bInitializeGrenades = true;
 		HUDGrenades = Grenades;
 	}
 }
@@ -215,12 +239,15 @@ void AVortexPlayerController::PollInit() {
 		if (VortexHUD && VortexHUD->CharacterOverlay) {
 			CharacterOverlay = VortexHUD->CharacterOverlay;
 			if (CharacterOverlay) {
-				SetHUDHealth(HUDHealth, HUDMaxHealth);
-				SetHUDScore(HUDScore);
-				SetHUDDefeats(HUDDefeats);
+				if (bInitializeHealth)  SetHUDHealth(HUDHealth, HUDMaxHealth);
+				if (bInitializeShield) SetHUDShield(HUDShield, HUDMaxShield);
+				if (bInitializeScore) SetHUDScore(HUDScore);
+				if (bInitializeDefeats) SetHUDDefeats(HUDDefeats);
+				if (bInitializeCarriedAmmo) SetHUDCarriedAmmo(HUDCarriedAmmo);
+				if (bInitializeWeaponAmmo) SetHUDWeaponAmmo(HUDWeaponAmmo);
 				AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(GetPawn());
 				if (VortexCharacter && VortexCharacter->GetCombat()) {
-					SetHUDGrenades(VortexCharacter->GetCombat()->GetGrenades());
+					if (bInitializeGrenades) SetHUDGrenades(VortexCharacter->GetCombat()->GetGrenades());
 				}
 			}
 		}

@@ -31,6 +31,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	void EquipWeapon(AWeapon* WeaponToEquip);
+	void SwapWeapons();
 	void Reload();
 	void FireButtonPressed(bool bPressed);
 
@@ -47,6 +48,8 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerLaunchGrenade(const FVector_NetQuantize& Target);
+
+	void PickupAmmo(EWeaponType WeaponType, int32 AmmoAmount);
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -58,6 +61,10 @@ protected:
 
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
+
+	UFUNCTION()
+	void OnRep_SecondaryWeapon();
+	
 	void Fire();
 
 	UFUNCTION(Server, Reliable)
@@ -93,9 +100,11 @@ protected:
 
 	void AttachActorToLeftHand(AActor* ActorToAttach);
 
+	void AttachActorToBackpack(AActor* ActorToAttach);
+
 	void UpdateCarriedAmmo();
 
-	void PlayEquipWeaponSound();
+	void PlayEquipWeaponSound(AWeapon* WeaponToEquip);
 
 	void ReloadEmptyWeapon();
 
@@ -105,6 +114,9 @@ protected:
 	void OnRep_Grenades();
 
 	void UpdateHUDGrenades();
+
+	void EquipPrimaryWeapon(AWeapon* WeaponToEquip);
+	void EquipSecondaryWeapon(AWeapon* WeaponToEquip);
 
 private:
 	UPROPERTY()
@@ -116,6 +128,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeapon)
 	AWeapon* EquippedWeapon;
+
+	UPROPERTY(ReplicatedUsing=OnRep_SecondaryWeapon)
+	AWeapon* SecondaryWeapon;
 
 	UPROPERTY(Replicated)
 	bool bAiming;
@@ -163,6 +178,9 @@ private:
 	
 	TMap<EWeaponType, int32> CarriedAmmoMap;
 	UPROPERTY(EditAnywhere)
+	int32 MaxCarriedAmmo = 500;
+	
+	UPROPERTY(EditAnywhere)
 	int32 StartingARAmmo = 30;
 
 	UPROPERTY(EditAnywhere)
@@ -202,8 +220,9 @@ private:
 	
 public:	
 	FORCEINLINE int32 GetGrenades() const { return Grenades; }
-		
+	bool ShouldSwapWeapons();
 };
+
 
 
 

@@ -11,6 +11,7 @@
 #include "Vortex/VortexTypes/CombatState.h"
 #include "VortexCharacter.generated.h"
 
+class UBuffComponent;
 class AVortexPlayerState;
 class UCombatComponent;
 class AWeapon;
@@ -62,6 +63,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowSniperScopeWidget(bool bShowScope);
 
+	void UpdateHUDHealth();
+	void UpdateHUDShield();
+	void UpdateHUDAmmo();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -81,11 +86,14 @@ protected:
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
 	                   AController* InstigatedController, AActor* DamageCauser);
-	void UpdateHUDHealth();
 	void PollInit();
 	void RotateInPlace(float DeltaTime);
 	void PlayHitReactMontage();
 
+	void SpawnDefaultWeapon();
+	void DropOrDestroyWeapon(AWeapon* Weapon);
+	void DropOrDestroyWeapons();
+	
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* CharacterMappingContext;
@@ -131,6 +139,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCombatComponent* Combat;
+
+	UPROPERTY(VisibleAnywhere)
+	UBuffComponent* Buff;
 
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* FireWeaponMontage;
@@ -179,13 +190,22 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Player States")
 	float MaxHealth = 100.f;
-
 	UPROPERTY(ReplicatedUsing=OnRep_Health, VisibleAnywhere, Category="Player States")
 	float Health = 100.f;
-
 	UFUNCTION()
-	void OnRep_Health();
+	void OnRep_Health(float LastHealth);
 
+	/*
+	 * Player shield
+	 */
+	UPROPERTY(EditAnywhere, Category = "Player States")
+	float MaxShield = 100.f;
+	UPROPERTY(ReplicatedUsing=OnRep_Shield, VisibleAnywhere, Category="Player States")
+	float Shield = 50.f;
+	UFUNCTION()
+	void OnRep_Shield(float LastShield);
+	
+	UPROPERTY()
 	AVortexPlayerController* VortexPlayerController = nullptr;
 
 	bool bElimmed = false;
@@ -232,6 +252,12 @@ private:
 	 */
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* AttachedGrenade;
+
+	/*
+	 * Default Weapon
+	 */
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AWeapon> DefaultWeaponClass;
 	
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);
@@ -244,14 +270,22 @@ public:
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
 	FORCEINLINE bool IsElimmed() const { return bElimmed; }
 	FORCEINLINE float GetHealth() const { return Health; }
+	FORCEINLINE void SetHealth(float Amount) {	Health = Amount; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 	FORCEINLINE UCombatComponent* GetCombat() const { return Combat; }
 	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
 	FORCEINLINE UAnimMontage* GetReloadMontage() const { return ReloadMontage; }
 	FORCEINLINE UStaticMeshComponent* GetAttachedGrenade() const { return AttachedGrenade; }
+	FORCEINLINE UBuffComponent* GetBuff() const { return Buff; }
+	FORCEINLINE float GetShield() const { return Shield; }
+	FORCEINLINE float GetMaxShield() const { return MaxShield; }
+	FORCEINLINE void SetShield(float Amount) { Shield = Amount; }
 	ECombatState GetCombatState() const;
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
 };
+
+
+
 
 

@@ -24,6 +24,7 @@
 #include "Vortex/GameMode/VortexGameMode.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
 #include "Vortex/PlayerState/VortexPlayerState.h"
+#include "Vortex/VortexComponents/BuffComponent.h"
 #include "Vortex/Weapon/WeaponTypes.h"
 
 DEFINE_LOG_CATEGORY(LogVortexCharacter);
@@ -53,6 +54,9 @@ AVortexCharacter::AVortexCharacter() {
 
 	Combat = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 
+	Buff = CreateDefaultSubobject<UBuffComponent>(TEXT("BuffComponent"));
+	Buff->SetIsReplicated(true);
+
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
@@ -75,6 +79,11 @@ void AVortexCharacter::PostInitializeComponents() {
 	if (Combat) {
 		Combat->Character = this;
 		Combat->SetIsReplicated(true);
+	}
+	if (Buff) {
+		Buff->Character = this;
+		Buff->SetInitialSpeed(GetCharacterMovement()->MaxWalkSpeed, GetCharacterMovement()->MaxWalkSpeedCrouched);
+		Buff->SetInitialJumpVelocity(GetCharacterMovement()->JumpZVelocity);
 	}
 }
 
@@ -151,11 +160,24 @@ void AVortexCharacter::PlayHitReactMontage() {
 	}
 }
 
+void AVortexCharacter::SpawnDefaultWeapon() {
+	AVortexGameMode* VortexGameMode = Cast<AVortexGameMode>(UGameplayStatics::GetGameMode(this));
+	UWorld* World = GetWorld();
+	if (VortexGameMode && World && !bElimmed && DefaultWeaponClass) {
+		AWeapon* StartingWeapon = World->SpawnActor<AWeapon>(DefaultWeaponClass);
+		StartingWeapon->bDestroyWeapon = true;
+		if (Combat) {
+			Combat->EquipWeapon(StartingWeapon);
+		}
+	}
+}
+
 void AVortexCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(AVortexCharacter, OverlappingWeapon, COND_OwnerOnly);
 	DOREPLIFETIME(AVortexCharacter, Health);
 	DOREPLIFETIME(AVortexCharacter, bDisableGameplay);
+	DOREPLIFETIME(AVortexCharacter, Shield);
 }
 
 void AVortexCharacter::OnRep_ReplicatedMovement() {
@@ -165,9 +187,7 @@ void AVortexCharacter::OnRep_ReplicatedMovement() {
 }
 
 void AVortexCharacter::Elim() {
-	if (Combat && Combat->EquippedWeapon) {
-		Combat->EquippedWeapon->Dropped();
-	}
+	DropOrDestroyWeapons();
 	MulticastElim();
 	GetWorldTimerManager().SetTimer(ElimTimer, this, &AVortexCharacter::ElimTimerFinished, ElimDelay);
 }
@@ -224,6 +244,25 @@ void AVortexCharacter::ElimTimerFinished() {
 	}
 }
 
+void AVortexCharacter::DropOrDestroyWeapon(AWeapon* Weapon) {
+	if (Weapon == nullptr) return;
+	if (Weapon->bDestroyWeapon) {
+		Weapon->Destroy();
+	}else {
+		Weapon->Dropped();
+	}
+}
+
+void AVortexCharacter::DropOrDestroyWeapons() {
+	if (Combat) {
+		if (Combat->EquippedWeapon) {
+			DropOrDestroyWeapon(Combat->EquippedWeapon);
+		}
+		if (Combat->SecondaryWeapon) {
+			DropOrDestroyWeapon(Combat->SecondaryWeapon);
+		}
+	}
+}
 
 void AVortexCharacter::Destroyed() {
 	Super::Destroyed();
@@ -239,15 +278,18 @@ void AVortexCharacter::Destroyed() {
 
 void AVortexCharacter::BeginPlay() {
 	Super::BeginPlay();
-
+	
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController())) {
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
 			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())) {
 			Subsystem->AddMappingContext(CharacterMappingContext, 0);
 		}
 	}
-
+	
+	SpawnDefaultWeapon();
+	UpdateHUDAmmo();
 	UpdateHUDHealth();
+	UpdateHUDShield();
 
 	if (HasAuthority()) {
 		OnTakeAnyDamage.AddDynamic(this, &ThisClass::AVortexCharacter::ReceiveDamage);
@@ -366,18 +408,25 @@ void AVortexCharacter::Equip(const FInputActionValue& Value) {
 	bool bEquip = Value.Get<bool>();
 	if (Combat) {
 		if (HasAuthority()) {
-			Combat->EquipWeapon(OverlappingWeapon);
+			if (OverlappingWeapon) {
+				Combat->EquipWeapon(OverlappingWeapon);
+			}else if (Combat->ShouldSwapWeapons()) {
+				Combat->SwapWeapons();
+			}
 		}
 		else {
 			ServerEquipButtonPressed();
-			// UE_LOG(LogVortexCharacter, Error, TEXT("EquipWeapon %p"), OverlappingWeapon);
 		}
 	}
 }
 
 void AVortexCharacter::ServerEquipButtonPressed_Implementation() {
 	if (Combat) {
-		Combat->EquipWeapon(OverlappingWeapon);
+		if (OverlappingWeapon) {
+			Combat->EquipWeapon(OverlappingWeapon);
+		}else if (Combat->ShouldSwapWeapons()) {
+			Combat->SwapWeapons();
+		}
 	}
 }
 
@@ -433,8 +482,20 @@ void AVortexCharacter::CalculateAO_Pitch() {
 void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
                                      AController* InstigatedController, AActor* DamageCauser) {
 	if (bElimmed) return;
-	Health = FMath::Clamp(Health - Damage, 0.0f, MaxHealth);
+
+	float DamageToHealth = Damage;
+	if (Shield > 0.f) {
+		if (Shield >= Damage) {
+			Shield = FMath::Clamp(Shield - Damage, 0.f, MaxShield);
+			DamageToHealth = 0.f;
+		}else {
+			DamageToHealth = FMath::Clamp(DamageToHealth - Shield, 0.f, Damage);
+			Shield = 0.f;
+		}
+	}
+	Health = FMath::Clamp(Health - DamageToHealth, 0.0f, MaxHealth);
 	UpdateHUDHealth();
+	UpdateHUDShield();
 	PlayHitReactMontage();
 	if (Health == 0.0f) {
 		AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
@@ -545,9 +606,18 @@ void AVortexCharacter::HideCameraIfCharacterClose() {
 	}
 }
 
-void AVortexCharacter::OnRep_Health() {
+void AVortexCharacter::OnRep_Health(float LastHealth) {
 	UpdateHUDHealth();
-	PlayHitReactMontage();
+	if (Health < LastHealth) {
+		PlayHitReactMontage();
+	}
+}
+
+void AVortexCharacter::OnRep_Shield(float LastShield) {
+	UpdateHUDShield();
+	if (Shield < LastShield) {
+		PlayHitReactMontage();
+	}
 }
 
 void AVortexCharacter::UpdateHUDHealth() {
@@ -556,6 +626,25 @@ void AVortexCharacter::UpdateHUDHealth() {
 		                         : VortexPlayerController;
 	if (VortexPlayerController) {
 		VortexPlayerController->SetHUDHealth(Health, MaxHealth);
+	}
+}
+
+void AVortexCharacter::UpdateHUDShield() {
+	VortexPlayerController = VortexPlayerController == nullptr
+							 ? Cast<AVortexPlayerController>(Controller)
+							 : VortexPlayerController;
+	if (VortexPlayerController) {
+		VortexPlayerController->SetHUDShield(Shield, MaxShield);
+	}
+}
+
+void AVortexCharacter::UpdateHUDAmmo() {
+	VortexPlayerController = VortexPlayerController == nullptr
+						 ? Cast<AVortexPlayerController>(Controller)
+						 : VortexPlayerController;
+	if (VortexPlayerController && Combat && Combat->EquippedWeapon) {
+		VortexPlayerController->SetHUDCarriedAmmo(Combat->CarriedAmmo);
+		VortexPlayerController->SetHUDWeaponAmmo(Combat->EquippedWeapon->GetAmmo());
 	}
 }
 

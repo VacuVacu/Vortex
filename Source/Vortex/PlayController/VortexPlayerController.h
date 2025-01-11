@@ -16,6 +16,7 @@ class VORTEX_API AVortexPlayerController : public APlayerController
 	GENERATED_BODY()
 public:
 	void SetHUDHealth(float Health, float MaxHealth);
+	void SetHUDShield(float Shield, float MaxShield);
 	void SetHUDScore(float Score);
 	void SetHUDDefeats(int32 Defeats);
 	void SetHUDWeaponAmmo(int32 Ammo);
@@ -80,11 +81,21 @@ private:
 
 	UPROPERTY()
 	UCharacterOverlay* CharacterOverlay;
-
-	bool bInitializedCharacterOverlay = false;
+	
+	bool bInitializeHealth = false;
 	float HUDHealth = 0.f;
 	float HUDMaxHealth = 0.f;
+	bool bInitializeScore = false;
 	float HUDScore = 0.f;
+	bool bInitializeDefeats = false;
 	int32 HUDDefeats = 0;
+	bool bInitializeGrenades = false;
 	int32 HUDGrenades = 0;
+	bool bInitializeShield = false;
+	float HUDShield = 0.f;
+	float HUDMaxShield = 0.f;
+	bool bInitializeCarriedAmmo = false;
+	int32 HUDCarriedAmmo = 0;
+	bool bInitializeWeaponAmmo = false;
+	int32 HUDWeaponAmmo = 0;
 };
