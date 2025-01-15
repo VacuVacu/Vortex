@@ -2,6 +2,7 @@
 
 
 #include "VortexPlayerController.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/GameMode.h"
@@ -65,6 +66,7 @@ void AVortexPlayerController::Tick(float DeltaSeconds) {
 	SetHUDTime();
 	CheckTimeSync(DeltaSeconds);
 	PollInit();
+	CheckPing(DeltaSeconds);
 }
 
 void AVortexPlayerController::CheckTimeSync(float DeltaTime) {
@@ -72,6 +74,50 @@ void AVortexPlayerController::CheckTimeSync(float DeltaTime) {
 	if (IsLocalController() && TimeSyncRunningTime > TimeSyncFrequency) {
 		ServerRequestServerTime(GetWorld()->GetTimeSeconds());
 		TimeSyncRunningTime = 0.f;
+	}
+}
+
+void AVortexPlayerController::HighPingWarning() {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->HighPingImage && VortexHUD->CharacterOverlay->HighPingAnimation;
+	if (bHUDValid) {
+		VortexHUD->CharacterOverlay->HighPingImage->SetOpacity(1.f);
+		VortexHUD->CharacterOverlay->PlayAnimation(VortexHUD->CharacterOverlay->HighPingAnimation, 0.f, 5);
+	}
+}
+
+void AVortexPlayerController::StopHighPingWarning() {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->HighPingImage && VortexHUD->CharacterOverlay->HighPingAnimation;
+	if (bHUDValid) {
+		VortexHUD->CharacterOverlay->HighPingImage->SetOpacity(0.f);
+		if (VortexHUD->CharacterOverlay->IsAnimationPlaying(VortexHUD->CharacterOverlay->HighPingAnimation)) {
+			VortexHUD->CharacterOverlay->StopAnimation(VortexHUD->CharacterOverlay->HighPingAnimation);
+		}
+	}
+}
+
+void AVortexPlayerController::CheckPing(float DeltaTime) {
+	HighPingRunningTime += DeltaTime;
+	if (HighPingRunningTime > CheckPingFrequency) {
+		PlayerState = PlayerState == nullptr ? GetPlayerState<AVortexPlayerState>() : PlayerState;
+		if (PlayerState) {
+			if (PlayerState->GetCompressedPing() * 4 > HighPingThreshold) {
+				HighPingWarning();
+				PingAnimationRunningTime = 0.f;
+			}
+		}
+		HighPingRunningTime = 0.f;
+	}
+	bool bHighPingAnimationPlaying = VortexHUD && VortexHUD->CharacterOverlay && VortexHUD->CharacterOverlay->HighPingAnimation &&
+		VortexHUD->CharacterOverlay->IsAnimationPlaying(VortexHUD->CharacterOverlay->HighPingAnimation);
+	if (bHighPingAnimationPlaying) {
+		PingAnimationRunningTime += DeltaTime;
+		if (PingAnimationRunningTime > HighPingDuration) {
+			StopHighPingWarning();
+		}
 	}
 }
 

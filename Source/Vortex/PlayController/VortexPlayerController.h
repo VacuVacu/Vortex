@@ -24,7 +24,7 @@ public:
 	void SetHUDMatchCountDown(float CountDownTime);
 	void SetHUDAnnouncementCountDown(float CountDownTime);
 	void SetHUDGrenades(int32 Grenades);
-	void OnPossess(APawn* InPawn) override;
+	virtual void OnPossess(APawn* InPawn) override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float GetServerTime();
 	virtual void ReceivedPlayer() override;
@@ -60,6 +60,10 @@ protected:
 
 	UFUNCTION(Client, Reliable)
 	void ClientJoinMidgame(FName StateOfMatch, float Warmup, float Match, float Cooldown, float StartingTime);
+
+	void HighPingWarning();
+	void StopHighPingWarning();
+	void CheckPing(float DeltaTime);
 	
 private:
 	UPROPERTY()
@@ -98,4 +102,13 @@ private:
 	int32 HUDCarriedAmmo = 0;
 	bool bInitializeWeaponAmmo = false;
 	int32 HUDWeaponAmmo = 0;
+
+	float HighPingRunningTime = 0.f;
+	UPROPERTY(EditAnywhere)
+	float HighPingDuration = 5.f;
+	float PingAnimationRunningTime = 0.f;
+	UPROPERTY(EditAnywhere)
+	float CheckPingFrequency = 20.f;
+	UPROPERTY(EditAnywhere)
+	float HighPingThreshold = 50.f;
 };

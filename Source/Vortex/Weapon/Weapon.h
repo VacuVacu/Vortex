@@ -25,6 +25,14 @@ enum class EWeaponState: uint8 {
 	EWS_MAX UMETA(DisplayName = "DefaultMax")
 };
 
+UENUM(BlueprintType)
+enum class EFireType: uint8 {
+	EFT_HitScan UMETA(DisplayName = "Hit Scan Weapon"),
+	EFT_Projectile UMETA(DisplayName = "Projectile Weapon"),
+	EFT_Shotgun UMETA(DisplayName = "Shotgun Weapon"),
+	EFT_Max UMETA(DisplayName = "DefaultMax")
+};
+
 UCLASS()
 class VORTEX_API AWeapon : public AActor {
 	GENERATED_BODY()
@@ -39,6 +47,7 @@ public:
 	virtual void Fire(const FVector& HitTarget);
 	void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
+	FVector TraceEndWithScatter(const FVector& HitTarget);
 
 	/*
 	 * enable or disable custom depth
@@ -72,6 +81,12 @@ public:
 	USoundCue* EquipSound;
 
 	bool bDestroyWeapon = false;
+
+	UPROPERTY(EditAnywhere)
+	EFireType FireType;
+
+	UPROPERTY(EditAnywhere, Category="WeaponScatter")
+	bool bUseScatter = false;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -89,6 +104,15 @@ protected:
 	void OnSpheraEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                        UPrimitiveComponent* OtherComp,
 	                        int32 OtherBodyIndex);
+
+	/*
+	 * Trace end with scatter
+	 */
+	UPROPERTY(EditAnywhere, Category="WeaponScatter")
+	float DistanceToSphere = 800.f;
+	
+	UPROPERTY(EditAnywhere, Category="WeaponScatter")
+	float SphereRadius = 75.f;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category="Weapon")

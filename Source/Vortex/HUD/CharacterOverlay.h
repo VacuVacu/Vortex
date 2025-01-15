@@ -9,6 +9,8 @@
 
 class UTextBlock;
 class UProgressBar;
+class UImage;
+class UWidgetAnimation;
 
 UCLASS()
 class VORTEX_API UCharacterOverlay : public UUserWidget
@@ -45,5 +47,11 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* GrenadesText;
+
+	UPROPERTY(meta = (BindWidget))
+	UImage* HighPingImage;
+
+	UPROPERTY(meta = (BindWidgetAnim), Transient)
+	UWidgetAnimation* HighPingAnimation;
 	
 };
