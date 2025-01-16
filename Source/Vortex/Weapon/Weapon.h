@@ -114,6 +114,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category="WeaponScatter")
 	float SphereRadius = 75.f;
 
+	UPROPERTY(EditAnywhere)
+	float Damage = 20.f;
+
+	UPROPERTY(EditAnywhere)
+	bool bUseServerSideRewind = false;
+
+	UPROPERTY()
+	AVortexCharacter* VortexOwnerCharacter;
+	UPROPERTY()
+	AVortexPlayerController* VortexOwnerController;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category="Weapon")
 	USkeletalMeshComponent* WeaponMesh;
@@ -133,23 +144,25 @@ private:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ACasing> CasingClass;
 
-	UPROPERTY(EditAnywhere, ReplicatedUsing=OnRep_Ammo)
+	UPROPERTY(EditAnywhere)
 	int32 Ammo;
-	UFUNCTION()
-	void OnRep_Ammo();
 
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAmmo(int32 ServerAmmo);
+	UFUNCTION(Client, Reliable)
+	void ClientAddAmmo(int32 AmmoToAdd);
+	
 	void SpendRound();
 
 	UPROPERTY(EditAnywhere)
 	int32 MagCapacity;
 
+	// The number of unprocessed server requests for ammo
+	// incremented in SpendRound decrement in ClientUpdateAmmo
+	int32 Sequence = 0;
+
 	UFUNCTION()
 	void OnRep_WeaponState();
-
-	UPROPERTY()
-	AVortexCharacter* VortexOwnerCharacter;
-	UPROPERTY()
-	AVortexPlayerController* VortexOwnerController;
 
 	UPROPERTY(EditAnywhere)
 	EWeaponType WeaponType;
@@ -163,6 +176,7 @@ public:
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponType; }
 	FORCEINLINE int32 GetAmmo() const { return Ammo; }
 	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
+	FORCEINLINE float GetDamage() const { return Damage; }
 	bool IsEmpty();
 	bool IsFull();
 };

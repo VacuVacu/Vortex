@@ -7,6 +7,8 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Sound/SoundCue.h"
 #include "Vortex/Character/VortexCharacter.h"
+#include "Vortex/PlayController/VortexPlayerController.h"
+#include "Vortex/VortexComponents/LagCompensationComponent.h"
 
 void AHitScanWeapon::Fire(const FVector& HitTarget) {
 	Super::Fire(HitTarget);
@@ -22,13 +24,26 @@ void AHitScanWeapon::Fire(const FVector& HitTarget) {
 		WeaponTraceHit(Start, HitTarget, FireHit);
 
 		AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(FireHit.GetActor());
-		if (VortexCharacter && HasAuthority() && InstigatorController) {
-			UGameplayStatics::ApplyDamage(
-			VortexCharacter,
-			Damage,
-			InstigatorController,
-			this,
-			UDamageType::StaticClass());
+		if (VortexCharacter && InstigatorController) {
+			if (HasAuthority() && !bUseServerSideRewind) {
+				UGameplayStatics::ApplyDamage(
+				VortexCharacter,
+				Damage,
+				InstigatorController,
+				this,
+				UDamageType::StaticClass());
+			}else if (!HasAuthority() && bUseServerSideRewind) {
+				VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(OwnerPawn) : VortexOwnerCharacter;
+				VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(InstigatorController) : VortexOwnerController;
+				if (VortexOwnerCharacter && VortexOwnerController && VortexOwnerCharacter->GetLagCompensation() && VortexOwnerCharacter->IsLocallyControlled()) {
+					VortexOwnerCharacter->GetLagCompensation()->ServerSocreRequest(
+						VortexCharacter,
+						Start,
+						HitTarget,
+						VortexOwnerController->GetServerTime()-VortexOwnerController->SingleTripTime,
+						this);
+				}
+			}
 		}
 		if (ImpactParticles) {
 			UGameplayStatics::SpawnEmitterAtLocation(

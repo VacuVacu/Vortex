@@ -308,6 +308,7 @@ void AVortexPlayerController::ServerRequestServerTime_Implementation(float TimeO
 void AVortexPlayerController::ClientReportServerTime_Implementation(float TimeOfClientRequest,
                                                                     float TimeServerReceivedClientRequest) {
 	float RoundTripTime = GetWorld()->GetTimeSeconds() - TimeOfClientRequest;
+	SingleTripTime = 0.5f * RoundTripTime;
 	float CurrentServerTime = TimeServerReceivedClientRequest + (0.5 * RoundTripTime);
 	ClientServerDelta = CurrentServerTime - GetWorld()->GetTimeSeconds();
 }

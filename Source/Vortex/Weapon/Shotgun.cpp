@@ -7,6 +7,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Vortex/Character/VortexCharacter.h"
 #include "Sound/SoundCue.h"
+#include "Vortex/PlayController/VortexPlayerController.h"
+#include "Vortex/VortexComponents/LagCompensationComponent.h"
 
 void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets) {
 	AWeapon::Fire(FVector());
@@ -43,14 +45,29 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets) {
 				UGameplayStatics::PlaySoundAtLocation(this, HitSound, FireHit.ImpactPoint, .5f,FMath::FRandRange(-0.5f,0.5f));
 			}
 		}
+		TArray<AVortexCharacter*> HitCharacters;
 		for (const auto& HitPair : HitMap) {
-			if (HitPair.Key && HasAuthority() && InstigatorController) {
-				UGameplayStatics::ApplyDamage(
+			if (HitPair.Key && InstigatorController) {
+				if (HasAuthority() && !bUseServerSideRewind) {
+					UGameplayStatics::ApplyDamage(
 			HitPair.Key,
 				Damage * HitPair.Value,
 				InstigatorController,
 				this,
 				UDamageType::StaticClass());
+				}
+				HitCharacters.Add(HitPair.Key);
+			}
+		}
+		if (!HasAuthority() && bUseServerSideRewind) {
+			VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(OwnerPawn) : VortexOwnerCharacter;
+			VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(InstigatorController) : VortexOwnerController;
+			if (VortexOwnerCharacter && VortexOwnerController && VortexOwnerCharacter->GetLagCompensation() && VortexOwnerCharacter->IsLocallyControlled()) {
+				VortexOwnerCharacter->GetLagCompensation()->SHotgunServerScoreRequest(
+					HitCharacters,
+					Start,
+					HitTargets,
+					VortexOwnerController->GetServerTime() - VortexOwnerController->SingleTripTime);
 			}
 		}
 	}

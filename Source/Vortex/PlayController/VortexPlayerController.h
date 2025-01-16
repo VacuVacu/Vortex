@@ -32,6 +32,9 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	void HandleMatchHasStarted();
 	void HandleCooldown();
+
+	float SingleTripTime = 0.0f;
+	
 protected:
 	virtual void BeginPlay() override;
 	void SetHUDTime();
