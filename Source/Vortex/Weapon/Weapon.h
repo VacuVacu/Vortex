@@ -117,7 +117,7 @@ protected:
 	UPROPERTY(EditAnywhere)
 	float Damage = 20.f;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(Replicated, EditAnywhere)
 	bool bUseServerSideRewind = false;
 
 	UPROPERTY()
@@ -167,6 +167,9 @@ private:
 	UPROPERTY(EditAnywhere)
 	EWeaponType WeaponType;
 
+	UFUNCTION()
+	void OnPingTooHigh(bool bPingTooHigh);
+
 public:
 	void SetWeaponState(EWeaponState State);
 	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
@@ -180,5 +183,7 @@ public:
 	bool IsEmpty();
 	bool IsFull();
 };
+
+
 
 

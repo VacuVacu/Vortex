@@ -25,7 +25,8 @@ void AHitScanWeapon::Fire(const FVector& HitTarget) {
 
 		AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(FireHit.GetActor());
 		if (VortexCharacter && InstigatorController) {
-			if (HasAuthority() && !bUseServerSideRewind) {
+			bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
+			if (HasAuthority() && bCauseAuthDamage) {
 				UGameplayStatics::ApplyDamage(
 				VortexCharacter,
 				Damage,

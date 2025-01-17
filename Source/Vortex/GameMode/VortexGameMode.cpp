@@ -67,7 +67,7 @@ void AVortexGameMode::PlayerEliminated(AVortexCharacter* ElimmedCharacter, AVort
 		VictimPlayerState->AddToDefeats(1);
 	}
 	if (ElimmedCharacter) {
-		ElimmedCharacter->Elim();
+		ElimmedCharacter->Elim(false);
 	}
 }
 
@@ -81,6 +81,18 @@ void AVortexGameMode::RequestRespawn(ACharacter* ElimmedCharacter, AController* 
 		UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(),PlayerStarts);
 		int32 Selection = FMath::RandRange(0, PlayerStarts.Num() - 1);
 		RestartPlayerAtPlayerStart(ElimmedController, PlayerStarts[Selection]);
+	}
+}
+
+void AVortexGameMode::PlayerLeftGame(AVortexPlayerState* PlayerLeaving) {
+	if (PlayerLeaving == nullptr) return;
+	AVortexGameState* VortexGameState = GetGameState<AVortexGameState>();
+	if (VortexGameState && VortexGameState->TopScoringPlayers.Contains(PlayerLeaving)) {
+		VortexGameState->TopScoringPlayers.Remove(PlayerLeaving);
+	}
+	AVortexCharacter* CharacterLeaving = Cast<AVortexCharacter>(PlayerLeaving->GetPawn());
+	if (CharacterLeaving) {
+		CharacterLeaving->Elim(true);
 	}
 }
 

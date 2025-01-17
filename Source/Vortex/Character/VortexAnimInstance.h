@@ -54,7 +54,7 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category="Movement", meta=(AllowPrivateAccess=true))
 	bool bElimmed;
 	UPROPERTY(BlueprintReadOnly, Category="Movement", meta=(AllowPrivateAccess=true))
-	bool bUseFABRIC;
+	bool bUseFABRIK;
 	UPROPERTY(BlueprintReadOnly, Category="Movement", meta=(AllowPrivateAccess=true))
 	bool bUseAimOffsets;
 	UPROPERTY(BlueprintReadOnly, Category="Movement", meta=(AllowPrivateAccess=true))

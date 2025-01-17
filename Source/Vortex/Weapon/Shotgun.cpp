@@ -48,7 +48,8 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets) {
 		TArray<AVortexCharacter*> HitCharacters;
 		for (const auto& HitPair : HitMap) {
 			if (HitPair.Key && InstigatorController) {
-				if (HasAuthority() && !bUseServerSideRewind) {
+				bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
+				if (HasAuthority() && bCauseAuthDamage) {
 					UGameplayStatics::ApplyDamage(
 			HitPair.Key,
 				Damage * HitPair.Value,
@@ -63,7 +64,7 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets) {
 			VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(OwnerPawn) : VortexOwnerCharacter;
 			VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(InstigatorController) : VortexOwnerController;
 			if (VortexOwnerCharacter && VortexOwnerController && VortexOwnerCharacter->GetLagCompensation() && VortexOwnerCharacter->IsLocallyControlled()) {
-				VortexOwnerCharacter->GetLagCompensation()->SHotgunServerScoreRequest(
+				VortexOwnerCharacter->GetLagCompensation()->ShotgunServerScoreRequest(
 					HitCharacters,
 					Start,
 					HitTargets,

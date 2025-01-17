@@ -27,6 +27,8 @@ class AVortexPlayerController;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVortexCharacter, Log, All);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLeftGame);
+
 UCLASS(config=Game)
 class VORTEX_API AVortexCharacter : public ACharacter, public IInteractWithCrosshairsInterface {
 	GENERATED_BODY()
@@ -44,18 +46,16 @@ public:
 	virtual void PostInitializeComponents() override;
 
 	void PlayFireMontage(bool bAiming);
-
 	void PlayReloadMontage();
-
 	void PlayElimMontage();
-
 	void PlayThrowGrenadeMontage();
+	void PlaySwapMontage();
 
 	virtual void OnRep_ReplicatedMovement() override;
 
-	void Elim();
+	void Elim(bool bPlayerLeftGame);
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastElim();
+	void MulticastElim(bool bPlayerLeftGame);
 
 	virtual void Destroyed() override;
 
@@ -71,6 +71,12 @@ public:
 
 	UPROPERTY()
 	TMap<FName, UBoxComponent*> HitCollisionBoxes;
+
+	bool bFinsihedSwapping = false;
+
+	FOnLeftGame OnLeftGame;
+	UFUNCTION(Server, Reliable)
+	void ServerLeaveGame();
 
 protected:
 	// Called when the game starts or when spawned
@@ -209,6 +215,9 @@ private:
 	UPROPERTY(EditAnywhere, Category="Combat")
 	UAnimMontage* ThrowGrenadeMontage;
 
+	UPROPERTY(EditAnywhere, Category="Combat")
+	UAnimMontage* SwapMontage;
+
 	UPROPERTY(EditAnywhere)
 	float CameraThreshold = 200.f;
 
@@ -266,6 +275,7 @@ private:
 	float ElimDelay = 3.f;
 	void ElimTimerFinished();
 
+	bool bLeftGame = false;
 	/*
 	 * Dissolve Effect
 	 */

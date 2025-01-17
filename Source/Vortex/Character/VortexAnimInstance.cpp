@@ -67,9 +67,12 @@ void UVortexAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 			RightHandRotation = FMath::RInterpTo(RightHandRotation,LookAtRotation,DeltaSeconds,30.f);
 		}
 	}
-	bUseFABRIC = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied;
-	if (VortexCharacter->IsLocallyControlled() && VortexCharacter->GetCombatState() != ECombatState::ECS_ThrowingGrenade) {
-		bUseFABRIC = !VortexCharacter->IsLocallyReloading();
+	bUseFABRIK = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied;
+	bool bFABRIKOverride = VortexCharacter->IsLocallyControlled() &&
+		VortexCharacter->GetCombatState() != ECombatState::ECS_ThrowingGrenade &&
+		VortexCharacter->bFinsihedSwapping;
+	if (bFABRIKOverride) {
+		bUseFABRIK = !VortexCharacter->IsLocallyReloading();
 	}
 	bUseAimOffsets = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied && !VortexCharacter->GetDisableGameplay();
 	bTransformRightHand = VortexCharacter->GetCombatState() == ECombatState::ECS_Unoccupied && !VortexCharacter->GetDisableGameplay();

@@ -14,6 +14,7 @@ namespace MatchState
 
 class AVortexPlayerController;
 class AVortexCharacter;
+class AVortexPlayerState;
 
 UCLASS()
 class VORTEX_API AVortexGameMode : public AGameMode
@@ -24,7 +25,8 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PlayerEliminated(AVortexCharacter* ElimmedCharacter, AVortexPlayerController* VictimController, AVortexPlayerController* AttackerController);
 	virtual void RequestRespawn(ACharacter* ElimmedCharacter, AController* ElimmedController);
-	
+	void PlayerLeftGame(AVortexPlayerState* PlayerLeaving);
+		
 	UPROPERTY(EditDefaultsOnly)
 	float WarmupTime = 10.f;
 

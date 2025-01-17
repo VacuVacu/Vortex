@@ -6,9 +6,14 @@
 #include "GameFramework/PlayerController.h"
 #include "VortexPlayerController.generated.h"
 
+class UReturnToMainMenu;
+class UInputAction;
+class UInputMappingContext;
 class AVortexGameMode;
 class UCharacterOverlay;
 class AVortexHUD;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHighPingDelegate, bool, bPingTooHigh);
 
 UCLASS()
 class VORTEX_API AVortexPlayerController : public APlayerController
@@ -34,9 +39,12 @@ public:
 	void HandleCooldown();
 
 	float SingleTripTime = 0.0f;
+
+	FHighPingDelegate HighPingDelegate;
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
 	void SetHUDTime();
 
 	void PollInit();
@@ -67,10 +75,26 @@ protected:
 	void HighPingWarning();
 	void StopHighPingWarning();
 	void CheckPing(float DeltaTime);
-	
+
+	void ShowReturnToMainMenu();
+
 private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputMappingContext* ControllerMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* BackToMainMenuAction;
+	
 	UPROPERTY()
 	AVortexHUD* VortexHUD;
+
+	UPROPERTY(EditAnywhere, Category=HUD)
+	TSubclassOf<UUserWidget> ReturnToMainMenuWidget;
+	UPROPERTY()
+	UReturnToMainMenu* ReturnToMainMenu;
+	
+	bool bReturnToMainMenuOpen = false;
+	
 	UPROPERTY()
 	AVortexGameMode* VortexGameMode;
 	
@@ -112,6 +136,10 @@ private:
 	float PingAnimationRunningTime = 0.f;
 	UPROPERTY(EditAnywhere)
 	float CheckPingFrequency = 20.f;
+
+	UFUNCTION(Server, Reliable)
+	void ServerReportPingStatus(bool bHighPing);
+	
 	UPROPERTY(EditAnywhere)
 	float HighPingThreshold = 50.f;
 };

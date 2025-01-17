@@ -62,6 +62,7 @@ void AWeapon::OnRep_Owner() {
 void AWeapon::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWeapon, WeaponState);
+	DOREPLIFETIME_CONDITION(AWeapon, bUseServerSideRewind, COND_OwnerOnly);
 }
 
 void AWeapon::EnableCustomDepth(bool bEnable) {
@@ -164,6 +165,10 @@ void AWeapon::OnWeaponStateSet() {
 	}
 }
 
+void AWeapon::OnPingTooHigh(bool bPingTooHigh) {
+	bUseServerSideRewind = !bPingTooHigh;
+}
+
 void AWeapon::OnRep_WeaponState() {
 	OnWeaponStateSet();
 }
@@ -180,6 +185,14 @@ void AWeapon::OnEquipped() {
 		WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 	}
 	EnableCustomDepth(false);
+
+	VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(GetOwner()) : VortexOwnerCharacter;
+	if (VortexOwnerCharacter && bUseServerSideRewind) {
+		VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(VortexOwnerCharacter->Controller) : VortexOwnerController;
+		if (VortexOwnerController && HasAuthority() && !VortexOwnerController->HighPingDelegate.IsBound()) {
+			VortexOwnerController->HighPingDelegate.AddDynamic(this, &AWeapon::OnPingTooHigh);
+		}
+	}
 }
 
 void AWeapon::OnDropped() {
@@ -195,6 +208,13 @@ void AWeapon::OnDropped() {
 	WeaponMesh->SetCustomDepthStencilValue(CUSTOM_DEPTH_BLUE);
 	WeaponMesh->MarkRenderStateDirty();
 	EnableCustomDepth(true);
+	VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(GetOwner()) : VortexOwnerCharacter;
+	if (VortexOwnerCharacter && bUseServerSideRewind) {
+		VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(VortexOwnerCharacter->Controller) : VortexOwnerController;
+		if (VortexOwnerController && HasAuthority() && VortexOwnerController->HighPingDelegate.IsBound()) {
+			VortexOwnerController->HighPingDelegate.RemoveDynamic(this, &AWeapon::OnPingTooHigh);
+		}
+	}
 }
 
 void AWeapon::OnEquippedSecondary() {
@@ -208,10 +228,16 @@ void AWeapon::OnEquippedSecondary() {
 		WeaponMesh->SetEnableGravity(true);
 		WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 	}
-	EnableCustomDepth(true);
 	if (WeaponMesh) {
 		WeaponMesh->SetCustomDepthStencilValue(CUSTOM_DEPTH_TAN);
 		WeaponMesh->MarkRenderStateDirty();
+	}
+	VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(GetOwner()) : VortexOwnerCharacter;
+	if (VortexOwnerCharacter && bUseServerSideRewind) {
+		VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(VortexOwnerCharacter->Controller) : VortexOwnerController;
+		if (VortexOwnerController && HasAuthority() && VortexOwnerController->HighPingDelegate.IsBound()) {
+			VortexOwnerController->HighPingDelegate.RemoveDynamic(this, &AWeapon::OnPingTooHigh);
+		}
 	}
 }
 

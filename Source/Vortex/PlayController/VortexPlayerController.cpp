@@ -2,6 +2,9 @@
 
 
 #include "VortexPlayerController.h"
+
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -14,8 +17,10 @@
 #include "Vortex/GameMode/VortexGameMode.h"
 #include "Vortex/GameState/VortexGameState.h"
 #include "Vortex/HUD/Announcement.h"
+#include "Vortex/HUD/ReturnToMainMenu.h"
 #include "Vortex/PlayerState/VortexPlayerState.h"
 #include "Vortex/VortexComponents/CombatComponent.h"
+
 
 void AVortexPlayerController::BeginPlay() {
 	Super::BeginPlay();
@@ -107,6 +112,9 @@ void AVortexPlayerController::CheckPing(float DeltaTime) {
 			if (PlayerState->GetCompressedPing() * 4 > HighPingThreshold) {
 				HighPingWarning();
 				PingAnimationRunningTime = 0.f;
+				ServerReportPingStatus(true);
+			}else {
+				ServerReportPingStatus(false);
 			}
 		}
 		HighPingRunningTime = 0.f;
@@ -119,6 +127,31 @@ void AVortexPlayerController::CheckPing(float DeltaTime) {
 			StopHighPingWarning();
 		}
 	}
+}
+
+void AVortexPlayerController::ShowReturnToMainMenu() {
+	if (ReturnToMainMenuWidget == nullptr) return;
+	if (ReturnToMainMenu == nullptr) {
+		ReturnToMainMenu = CreateWidget<UReturnToMainMenu>(this, ReturnToMainMenuWidget);
+	}
+	if (ReturnToMainMenu) {
+		bReturnToMainMenuOpen = !bReturnToMainMenuOpen;
+		if (bReturnToMainMenuOpen) {
+			ReturnToMainMenu->MenuSetup();
+		}else {
+			ReturnToMainMenu->MenuTearDown();
+		}
+	}
+}
+
+void AVortexPlayerController::ServerReportPingStatus_Implementation(bool bHighPing) {
+	HighPingDelegate.Broadcast(bHighPing);
+}
+
+void AVortexPlayerController::SetupInputComponent() {
+	Super::SetupInputComponent();
+	if (InputComponent == nullptr) return;
+	InputComponent->BindAction("Quit", IE_Pressed, this, &AVortexPlayerController::ShowReturnToMainMenu);
 }
 
 void AVortexPlayerController::SetHUDHealth(float Health, float MaxHealth) {
