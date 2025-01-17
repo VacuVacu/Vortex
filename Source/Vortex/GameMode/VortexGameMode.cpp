@@ -56,18 +56,44 @@ void AVortexGameMode::OnMatchStateSet() {
 
 void AVortexGameMode::PlayerEliminated(AVortexCharacter* ElimmedCharacter, AVortexPlayerController* VictimController,
                                        AVortexPlayerController* AttackerController) {
+	if (AttackerController == nullptr || AttackerController->PlayerState == nullptr) return;
+	if (VictimController == nullptr || VictimController->PlayerState == nullptr) return;
 	AVortexPlayerState* AttackerPlayerState = AttackerController ? Cast<AVortexPlayerState>(AttackerController->PlayerState) : nullptr;
 	AVortexPlayerState* VictimPlayerState = VictimController ? Cast<AVortexPlayerState>(VictimController->PlayerState) : nullptr;
 	AVortexGameState* VortexGameState = GetGameState<AVortexGameState>();
 	if (AttackerPlayerState && AttackerPlayerState != VictimPlayerState && VortexGameState) {
+		TArray<AVortexPlayerState*> PlayersCurrentlyInTheLead;
+		for (auto LeadPlayer: VortexGameState->TopScoringPlayers) {
+			PlayersCurrentlyInTheLead.Add(LeadPlayer);
+		}
 		AttackerPlayerState->AddToScore(10.f);
 		VortexGameState->UpdateTopScore(AttackerPlayerState);
+		if (VortexGameState->TopScoringPlayers.Contains(AttackerPlayerState)) {
+			AVortexCharacter* Leader = Cast<AVortexCharacter>(AttackerPlayerState->GetPawn());
+			if (Leader) {
+				Leader->MulticastGainedTheLead();
+			}
+		}
+		for (int32 i=0;i<PlayersCurrentlyInTheLead.Num();i++) {
+			if (!VortexGameState->TopScoringPlayers.Contains(PlayersCurrentlyInTheLead[i])) {
+				AVortexCharacter* Loser = Cast<AVortexCharacter>(PlayersCurrentlyInTheLead[i]->GetPawn());
+				if (Loser) {
+					Loser->MulticastLostTheLead();
+				}
+			}
+		}
 	}
 	if (VictimPlayerState) {
 		VictimPlayerState->AddToDefeats(1);
 	}
 	if (ElimmedCharacter) {
 		ElimmedCharacter->Elim(false);
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It) {
+		AVortexPlayerController* VortexPlayer = Cast<AVortexPlayerController>(*It);
+		if (VortexPlayer && AttackerPlayerState && VictimPlayerState) {
+			VortexPlayer->BroadcastElim(AttackerPlayerState, VictimPlayerState);
+		}
 	}
 }
 

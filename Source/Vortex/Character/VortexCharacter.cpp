@@ -10,6 +10,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -23,6 +25,7 @@
 #include "Sound/SoundCue.h"
 #include "Vortex/Vortex.h"
 #include "Vortex/GameMode/VortexGameMode.h"
+#include "Vortex/GameState/VortexGameState.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
 #include "Vortex/PlayerState/VortexPlayerState.h"
 #include "Vortex/VortexComponents/BuffComponent.h"
@@ -336,6 +339,9 @@ void AVortexCharacter::MulticastElim_Implementation(bool bPlayerLeftGame) {
 	if (bUseSniperRifle) {
 		ShowSniperScopeWidget(false);
 	}
+	if (CrownComponent) {
+		CrownComponent->DestroyComponent();
+	}
 	GetWorldTimerManager().SetTimer(ElimTimer, this, &AVortexCharacter::ElimTimerFinished, ElimDelay);
 }
 
@@ -389,6 +395,30 @@ void AVortexCharacter::Destroyed() {
 	}
 }
 
+void AVortexCharacter::MulticastGainedTheLead_Implementation() {
+	if (CrownSystem == nullptr) return;
+	if (CrownComponent == nullptr) {
+		CrownComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			CrownSystem,
+			GetCapsuleComponent(),
+			FName(),
+			GetActorLocation() + FVector(0, 0, 110.f),
+			GetActorRotation(),
+			EAttachLocation::KeepWorldPosition,
+			false
+		);
+	}
+	if (CrownComponent) {
+		CrownComponent->Activate();
+	}
+}
+
+void AVortexCharacter::MulticastLostTheLead_Implementation() {
+	if (CrownComponent) {
+		CrownComponent->DestroyComponent();
+	}
+}
+
 void AVortexCharacter::BeginPlay() {
 	Super::BeginPlay();
 	
@@ -410,6 +440,7 @@ void AVortexCharacter::BeginPlay() {
 	if (AttachedGrenade) {
 		AttachedGrenade->SetVisibility(false);
 	}
+	
 }
 
 void AVortexCharacter::Tick(float DeltaTime) {
@@ -781,6 +812,10 @@ void AVortexCharacter::PollInit() {
 		if (VortexPlayerState) {
 			VortexPlayerState->AddToScore(0.f);
 			VortexPlayerState->AddToDefeats(0);
+		}
+		AVortexGameState* VortexGameState = Cast<AVortexGameState>(UGameplayStatics::GetGameState(this));
+		if (VortexGameState && VortexGameState->TopScoringPlayers.Contains(VortexPlayerState)) {
+			MulticastGainedTheLead();
 		}
 	}
 }

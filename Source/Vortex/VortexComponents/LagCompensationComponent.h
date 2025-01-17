@@ -84,7 +84,7 @@ public:
 		float HitTime);
 	
 	UFUNCTION(Server, Reliable)
-	void ServerSocreRequest(AVortexCharacter* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize& HitLocation, float HitTime, AWeapon* DamageCauser);	
+	void ServerScoreRequest(AVortexCharacter* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize& HitLocation, float HitTime);	
 	UFUNCTION(Server, Reliable)
 	void ProjectileServerSocreRequest(
 		AVortexCharacter* HitCharacter,

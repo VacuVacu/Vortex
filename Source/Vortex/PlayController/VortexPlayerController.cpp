@@ -144,6 +144,36 @@ void AVortexPlayerController::ShowReturnToMainMenu() {
 	}
 }
 
+void AVortexPlayerController::BroadcastElim(APlayerState* Attacker, APlayerState* Victim) {
+	ClientElimAnnouncement(Attacker, Victim);
+}
+
+void AVortexPlayerController::ClientElimAnnouncement_Implementation(APlayerState* Attacker, APlayerState* Victim) {
+	APlayerState* Self = GetPlayerState<APlayerState>();
+	if (Attacker && Victim && Self) {
+		VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+		if (VortexHUD) {
+			if (Attacker == Self && Victim != Self) {
+				VortexHUD->AddElimAnnouncement("You", Victim->GetPlayerName());
+				return;
+			}
+			if (Victim == Self && Attacker != Self) {
+				VortexHUD->AddElimAnnouncement(Attacker->GetPlayerName(), "You");
+				return;
+			}
+			if (Attacker == Victim && Attacker == Self) {
+				VortexHUD->AddElimAnnouncement("You", "Yourself");
+				return;
+			}
+			if (Attacker == Victim && Attacker != Self) {
+				VortexHUD->AddElimAnnouncement(Attacker->GetPlayerName(), "Themselves");
+				return;
+			}
+			VortexHUD->AddElimAnnouncement(Attacker->GetPlayerName(), Victim->GetPlayerName());
+		}
+	}
+}
+
 void AVortexPlayerController::ServerReportPingStatus_Implementation(bool bHighPing) {
 	HighPingDelegate.Broadcast(bHighPing);
 }

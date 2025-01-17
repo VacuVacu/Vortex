@@ -21,17 +21,28 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets) {
 		const FVector Start = SocketTransform.GetLocation();
 		
 		TMap<AVortexCharacter*, uint32> HitMap;
+		TMap<AVortexCharacter*, uint32> HeadShotHitMap;
+		
 		for (const auto& HitTarget : HitTargets) {
 			FHitResult FireHit;
 			WeaponTraceHit(Start, HitTarget, FireHit);
 
 			AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(FireHit.GetActor());
 			if (VortexCharacter) {
-				if (HitMap.Contains(VortexCharacter)) {
-					HitMap[VortexCharacter]++;
-				}
-				else {
-					HitMap.Emplace(VortexCharacter, 1);
+				const bool bHeadShot = FireHit.BoneName.ToString() == FName("head");
+				if (bHeadShot) {
+					if (HeadShotHitMap.Contains(VortexCharacter)) {
+						HeadShotHitMap[VortexCharacter]++;
+					}else {
+						HeadShotHitMap.Emplace(VortexCharacter, 1);
+					}
+				}else {
+					if (HitMap.Contains(VortexCharacter)) {
+						HitMap[VortexCharacter]++;
+					}
+					else {
+						HitMap.Emplace(VortexCharacter, 1);
+					}
 				}
 			}
 			if (ImpactParticles) {
@@ -46,20 +57,34 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets) {
 			}
 		}
 		TArray<AVortexCharacter*> HitCharacters;
+		TMap<AVortexCharacter*, float> DamageMap;
 		for (const auto& HitPair : HitMap) {
 			if (HitPair.Key && InstigatorController) {
+				DamageMap.Emplace(HitPair.Key, HitPair.Value *  Damage);
+				HitCharacters.AddUnique(HitPair.Key);
+			}
+		}
+		for (const auto& HitPair : HeadShotHitMap) {
+			if (HitPair.Key && InstigatorController) {
+				if (DamageMap.Contains(HitPair.Key)) DamageMap[HitPair.Key] += HitPair.Value * HeadShotDamage;
+				else DamageMap.Emplace(HitPair.Key, HitPair.Value * HeadShotDamage);
+				HitCharacters.AddUnique(HitPair.Key);
+			}
+		}
+		for (auto DamagePair : DamageMap) {
+			if (DamagePair.Key && InstigatorController) {
 				bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
 				if (HasAuthority() && bCauseAuthDamage) {
 					UGameplayStatics::ApplyDamage(
-			HitPair.Key,
-				Damage * HitPair.Value,
-				InstigatorController,
-				this,
-				UDamageType::StaticClass());
+				DamagePair.Key,
+					DamagePair.Value,
+					InstigatorController,
+					this,
+					UDamageType::StaticClass());
 				}
-				HitCharacters.Add(HitPair.Key);
 			}
 		}
+		
 		if (!HasAuthority() && bUseServerSideRewind) {
 			VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(OwnerPawn) : VortexOwnerCharacter;
 			VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(InstigatorController) : VortexOwnerController;

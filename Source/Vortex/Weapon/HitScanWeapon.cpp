@@ -27,22 +27,25 @@ void AHitScanWeapon::Fire(const FVector& HitTarget) {
 		if (VortexCharacter && InstigatorController) {
 			bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
 			if (HasAuthority() && bCauseAuthDamage) {
+				const float DamageToCause = FireHit.BoneName.ToString() == FString("head") ? HeadShotDamage : Damage;
+				
 				UGameplayStatics::ApplyDamage(
 				VortexCharacter,
-				Damage,
+				DamageToCause,
 				InstigatorController,
 				this,
 				UDamageType::StaticClass());
+				
 			}else if (!HasAuthority() && bUseServerSideRewind) {
 				VortexOwnerCharacter = VortexOwnerCharacter == nullptr ? Cast<AVortexCharacter>(OwnerPawn) : VortexOwnerCharacter;
 				VortexOwnerController = VortexOwnerController == nullptr ? Cast<AVortexPlayerController>(InstigatorController) : VortexOwnerController;
 				if (VortexOwnerCharacter && VortexOwnerController && VortexOwnerCharacter->GetLagCompensation() && VortexOwnerCharacter->IsLocallyControlled()) {
-					VortexOwnerCharacter->GetLagCompensation()->ServerSocreRequest(
+					VortexOwnerCharacter->GetLagCompensation()->ServerScoreRequest(
 						VortexCharacter,
 						Start,
 						HitTarget,
-						VortexOwnerController->GetServerTime()-VortexOwnerController->SingleTripTime,
-						this);
+						VortexOwnerController->GetServerTime()-VortexOwnerController->SingleTripTime
+						);
 				}
 			}
 		}
@@ -78,18 +81,20 @@ void AHitScanWeapon::WeaponTraceHit(const FVector& TraceStart, const FVector& Hi
 		FVector BeamEnd = End;
 		if (OutHit.bBlockingHit) {
 			BeamEnd = OutHit.ImpactPoint;
-			if (BeamParticles) {
-				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(
-					World,
-					BeamParticles,
-					TraceStart,
-					FRotator::ZeroRotator,
-					true);
-				if (Beam) {
-					Beam->SetVectorParameter(FName("Target"), BeamEnd);
-				}
+		}else {
+			OutHit.ImpactPoint = End;
+		}
+		if (BeamParticles) {
+			UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(
+				World,
+				BeamParticles,
+				TraceStart,
+				FRotator::ZeroRotator,
+				true);
+			if (Beam) {
+				Beam->SetVectorParameter(FName("Target"), BeamEnd);
 			}
-		}	
+		}
 	}
 }
 

@@ -11,6 +11,8 @@
 #include "Vortex/VortexTypes/CombatState.h"
 #include "VortexCharacter.generated.h"
 
+class UNiagaraSystem;
+class UNiagaraComponent;
 class ULagCompensationComponent;
 class UBoxComponent;
 class UBuffComponent;
@@ -77,6 +79,11 @@ public:
 	FOnLeftGame OnLeftGame;
 	UFUNCTION(Server, Reliable)
 	void ServerLeaveGame();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastGainedTheLead();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastLostTheLead();
 
 protected:
 	// Called when the game starts or when spawned
@@ -296,7 +303,7 @@ private:
 	UMaterialInstance* DissolveMaterialInstance;
 
 	/*
-	 * Elim bot
+	 * Elim effects
 	 */
 	UPROPERTY(EditAnywhere)
 	UParticleSystem* ElimBotEffect;
@@ -308,6 +315,11 @@ private:
 	UPROPERTY()
 	AVortexPlayerState* VortexPlayerState = nullptr;
 
+	UPROPERTY(EditAnywhere)
+	UNiagaraSystem* CrownSystem;
+	
+	UPROPERTY()
+	UNiagaraComponent* CrownComponent;
 	/*
 	 * Grenade
 	 */

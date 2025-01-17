@@ -37,7 +37,8 @@ void AProjectileBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 		AVortexPlayerController* OwnerController = Cast<AVortexPlayerController>(OwnerCharacter->GetController());
 		if (OwnerController) {
 			if (OwnerCharacter->HasAuthority() && !bUseServerSideRewind) {
-				UGameplayStatics::ApplyDamage(OtherActor, Damage, OwnerController,this,UDamageType::StaticClass());
+				const float DamageToCause = HitResult.BoneName.ToString() == FString("head") ? HeadShotDamage : Damage;
+				UGameplayStatics::ApplyDamage(OtherActor, DamageToCause, OwnerController,this,UDamageType::StaticClass());
 				Super::OnHit(HitComp, OtherActor, OtherComp, NormalImpulse, HitResult);
 				return;
 			}

@@ -3,11 +3,16 @@
 
 #include "VortexHUD.h"
 #include "CharacterOverlay.h"
+#include "ElimAnnouncement.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
 #include "Vortex/HUD/Announcement.h"
 
 void AVortexHUD::BeginPlay() {
 	Super::BeginPlay();
+	
 }
 
 void AVortexHUD::AddCharacterToOverlay() {
@@ -24,6 +29,46 @@ void AVortexHUD::AddAnnouncement() {
 		Announcement = CreateWidget<UAnnouncement>(PlayerController, AnnouncementClass);
 		Announcement->AddToViewport();
 	}
+}
+
+void AVortexHUD::AddElimAnnouncement(FString Attacker, FString Victim) {
+	OwingPlayer = OwingPlayer == nullptr ? GetOwningPlayerController() : OwingPlayer;
+	if (OwingPlayer && ElimAnnouncementClass) {
+		UElimAnnouncement* 	ElimAnnouncementWidget = CreateWidget<UElimAnnouncement>(OwingPlayer, ElimAnnouncementClass);
+		if (ElimAnnouncementWidget) {
+			ElimAnnouncementWidget->SetElimAnnouncementText(Attacker, Victim);
+			ElimAnnouncementWidget->AddToViewport();
+
+			for (auto Msg: ElimMessages) {
+				if (Msg && Msg->AnnouncementBox) {
+					UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(Msg->AnnouncementBox);
+					if (CanvasSlot) {
+						FVector2D Position = CanvasSlot->GetPosition();
+						FVector2D NewPosition(Position.X, Position.Y - CanvasSlot->GetSize().Y);
+						CanvasSlot->SetPosition(NewPosition);
+					}
+					
+				}
+			}
+			
+			ElimMessages.Add(ElimAnnouncementWidget);
+
+			FTimerHandle ElimMsgTimer;
+			FTimerDelegate ElimMsgDelegate;
+			ElimMsgDelegate.BindUFunction(this,FName("ElimAnnouncementTimeFinished"), ElimAnnouncementWidget);
+			GetWorldTimerManager().SetTimer(
+				ElimMsgTimer,
+				ElimMsgDelegate,
+				ElimAnnouncementTime,
+				false);
+		}
+	}
+}
+
+void AVortexHUD::ElimAnnouncementTimeFinished(UElimAnnouncement* MsgToRemove) {
+	if (MsgToRemove) {
+		MsgToRemove->RemoveFromParent();
+	}	
 }
 
 void AVortexHUD::DrawHUD() {

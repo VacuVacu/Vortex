@@ -6,6 +6,7 @@
 #include "GameFramework/HUD.h"
 #include "VortexHUD.generated.h"
 
+class UElimAnnouncement;
 class UCharacterOverlay;
 class UTexture2D;
 class UAnnouncement;
@@ -46,13 +47,28 @@ public:
 
 	void AddAnnouncement();
 
+	void AddElimAnnouncement(FString Attacker, FString Victim);
+
 protected:
 	virtual void BeginPlay() override;
 	
 private:
+	UPROPERTY()
+	APlayerController* OwingPlayer;
+	
 	FHUDPackage HUDPackage;
 	UPROPERTY(EditAnywhere)
 	float CrosshairSpreadMax = 16.f;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UElimAnnouncement> ElimAnnouncementClass;
+
+	UPROPERTY(EditAnywhere)
+	float ElimAnnouncementTime = 2.5f;
+	UFUNCTION()
+	void ElimAnnouncementTimeFinished(UElimAnnouncement* MsgToRemove);
+	UPROPERTY()
+	TArray<UElimAnnouncement*> ElimMessages;
 	
 	void DrawCrosshair(UTexture2D* Texture, FVector2D ViewportCenter, FVector2D Spread, FLinearColor CrosshairColor);
 public:

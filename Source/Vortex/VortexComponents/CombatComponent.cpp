@@ -579,13 +579,13 @@ void UCombatComponent::ServerFire_Implementation(const FVector_NetQuantize& Trac
 	MultiCastFire(TraceHitTarget);
 }
 
-bool UCombatComponent::ServerFire_Validate(const FVector_NetQuantize& TraceHitTarget, float FireDelay) {
-	if (EquippedWeapon) {
-		bool bNearlyEqual = FMath::IsNearlyEqual(EquippedWeapon->FireDelay, FireDelay, 0.001f);
-		return bNearlyEqual;
-	}
-	return true;
-}
+// bool UCombatComponent::ServerFire_Validate(const FVector_NetQuantize& TraceHitTarget, float FireDelay) {
+// 	if (EquippedWeapon) {
+// 		bool bNearlyEqual = FMath::IsNearlyEqual(EquippedWeapon->FireDelay, FireDelay, 0.001f);
+// 		return bNearlyEqual;
+// 	}
+// 	return true;
+// }
 
 void UCombatComponent::MultiCastFire_Implementation(const FVector_NetQuantize& TraceHitTarget) {
 	if (Character && Character->IsLocallyControlled() && !Character->HasAuthority()) return;
@@ -605,6 +605,7 @@ void UCombatComponent::ShotgunLocalFire(const TArray<FVector_NetQuantize>& Trace
 	AShotgun* Shotgun = Cast<AShotgun>(EquippedWeapon);
 	if (Shotgun == nullptr || Character == nullptr) return;
 	if (CombatState == ECombatState::ECS_Reloading ||CombatState == ECombatState::ECS_Unoccupied) {
+		bLocallyReloading = false;
 		Character->PlayFireMontage(bAiming);
 		Shotgun->FireShotgun(TraceHitTargets);
 		CombatState = ECombatState::ECS_Unoccupied;
@@ -615,13 +616,13 @@ void UCombatComponent::ServerShotgunFire_Implementation(const TArray<FVector_Net
 	MultiCastShotgunFire(TraceHitTargets);
 }
 
-bool UCombatComponent::ServerShotgunFire_Validate(const TArray<FVector_NetQuantize>& TraceHitTargets, float FireDelay) {
-	if (EquippedWeapon) {
-		bool bNearlyEqual = FMath::IsNearlyEqual(EquippedWeapon->FireDelay, FireDelay, 0.001f);
-		return bNearlyEqual;
-	}
-	return true;
-}
+// bool UCombatComponent::ServerShotgunFire_Validate(const TArray<FVector_NetQuantize>& TraceHitTargets, float FireDelay) {
+// 	if (EquippedWeapon) {
+// 		bool bNearlyEqual = FMath::IsNearlyEqual(EquippedWeapon->FireDelay, FireDelay, 0.001f);
+// 		return bNearlyEqual;
+// 	}
+// 	return true;
+// }
 
 
 void UCombatComponent::MultiCastShotgunFire_Implementation(const TArray<FVector_NetQuantize>& TraceHitTargets) {
