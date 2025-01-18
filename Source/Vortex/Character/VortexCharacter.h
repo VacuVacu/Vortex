@@ -9,8 +9,10 @@
 #include "Vortex/VortexTypes/TurningInPlace.h"
 #include "Vortex/Interfaces/InteractWithCrosshairsInterface.h"
 #include "Vortex/VortexTypes/CombatState.h"
+#include "Vortex/VortexTypes/Team.h"
 #include "VortexCharacter.generated.h"
 
+class AVortexGameMode;
 class UNiagaraSystem;
 class UNiagaraComponent;
 class ULagCompensationComponent;
@@ -84,6 +86,8 @@ public:
 	void MulticastGainedTheLead();
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastLostTheLead();
+
+	void SetTeamColor(ETeam Team);
 
 protected:
 	// Called when the game starts or when spawned
@@ -299,9 +303,26 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category="Elim")
 	UMaterialInstanceDynamic* DynamicDissolveMaterialInstance;
-	UPROPERTY(EditAnywhere, Category="Elim")
+	UPROPERTY(VisibleAnywhere, Category="Elim")
 	UMaterialInstance* DissolveMaterialInstance;
 
+	/*
+	 * Team Colors
+	 */
+	UPROPERTY(EditAnywhere, Category="Elim")
+	UMaterialInstance* RedDissolveMatInstance;
+	UPROPERTY(EditAnywhere, Category="Elim")
+	UMaterialInstance* RedMaterial;
+	
+	
+	UPROPERTY(EditAnywhere, Category="Elim")
+	UMaterialInstance* BlueDissolveMatInstance;
+	UPROPERTY(EditAnywhere, Category="Elim")
+	UMaterialInstance* BlueMaterial;
+
+	UPROPERTY(EditAnywhere, Category="Elim")
+	UMaterialInstance* OriginalMaterial;
+	
 	/*
 	 * Elim effects
 	 */
@@ -331,6 +352,9 @@ private:
 	 */
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AWeapon> DefaultWeaponClass;
+
+	UPROPERTY()
+	AVortexGameMode* VortexGameMode = nullptr;
 	
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);

@@ -10,6 +10,7 @@
 void AVortexPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AVortexPlayerState, Defeats);
+	DOREPLIFETIME(AVortexPlayerState, Team);
 }
 
 void AVortexPlayerState::AddToScore(float ScoreAmount) {
@@ -54,5 +55,21 @@ void AVortexPlayerState::OnRep_Defeats() {
 		}
 	}
 }
+
+void AVortexPlayerState::SetTeam(ETeam TeamToSet) {
+	Team = TeamToSet;
+	AVortexCharacter* VCharacter = Cast<AVortexCharacter>(GetPawn());
+	if (VCharacter) {
+		VCharacter->SetTeamColor(Team);
+	}
+}
+
+void AVortexPlayerState::OnRep_Team() {
+	AVortexCharacter* VCharacter = Cast<AVortexCharacter>(GetPawn());
+	if (VCharacter) {
+		VCharacter->SetTeamColor(Team);
+	}
+}
+
 
 

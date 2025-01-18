@@ -265,7 +265,7 @@ void AVortexCharacter::PlayHitReactMontage() {
 }
 
 void AVortexCharacter::SpawnDefaultWeapon() {
-	AVortexGameMode* VortexGameMode = Cast<AVortexGameMode>(UGameplayStatics::GetGameMode(this));
+	VortexGameMode = VortexGameMode == nullptr ? GetWorld()->GetAuthGameMode<AVortexGameMode>() : VortexGameMode;
 	UWorld* World = GetWorld();
 	if (VortexGameMode && World && !bElimmed && DefaultWeaponClass) {
 		AWeapon* StartingWeapon = World->SpawnActor<AWeapon>(DefaultWeaponClass);
@@ -323,7 +323,7 @@ void AVortexCharacter::MulticastElim_Implementation(bool bPlayerLeftGame) {
 	//disable collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
+	AttachedGrenade->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	//spawn Elimbot
 	if (ElimBotEffect) {
 		FVector ElimBotSpawnLocation = GetActorLocation();
@@ -346,7 +346,7 @@ void AVortexCharacter::MulticastElim_Implementation(bool bPlayerLeftGame) {
 }
 
 void AVortexCharacter::ElimTimerFinished() {
-	AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
+	VortexGameMode = VortexGameMode == nullptr ? GetWorld()->GetAuthGameMode<AVortexGameMode>() : VortexGameMode;
 	if (VortexGameMode && !bLeftGame) {
 		VortexGameMode->RequestRespawn(this, Controller);
 	}
@@ -356,7 +356,7 @@ void AVortexCharacter::ElimTimerFinished() {
 }
 
 void AVortexCharacter::ServerLeaveGame_Implementation() {
-	AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
+	VortexGameMode = VortexGameMode == nullptr ? GetWorld()->GetAuthGameMode<AVortexGameMode>() : VortexGameMode;
 	VortexPlayerState = VortexPlayerState == nullptr ? GetPlayerState<AVortexPlayerState>() : VortexPlayerState; 
 	if (VortexGameMode && VortexPlayerState) {
 		VortexGameMode->PlayerLeftGame(VortexPlayerState);
@@ -388,7 +388,7 @@ void AVortexCharacter::Destroyed() {
 	if (ElimBotComponent) {
 		ElimBotComponent->DestroyComponent();
 	}
-	AVortexGameMode* VortexGameMode = Cast<AVortexGameMode>(UGameplayStatics::GetGameMode(this));
+	VortexGameMode = VortexGameMode == nullptr ? GetWorld()->GetAuthGameMode<AVortexGameMode>() : VortexGameMode;
 	bool bMatchNotInProgress = VortexGameMode && VortexGameMode->GetMatchState() != MatchState::InProgress;
 	if (Combat && Combat->EquippedWeapon && bMatchNotInProgress) {
 		Combat->EquippedWeapon->Destroy();
@@ -400,7 +400,7 @@ void AVortexCharacter::MulticastGainedTheLead_Implementation() {
 	if (CrownComponent == nullptr) {
 		CrownComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
 			CrownSystem,
-			GetCapsuleComponent(),
+			GetMesh(),
 			FName(),
 			GetActorLocation() + FVector(0, 0, 110.f),
 			GetActorRotation(),
@@ -416,6 +416,24 @@ void AVortexCharacter::MulticastGainedTheLead_Implementation() {
 void AVortexCharacter::MulticastLostTheLead_Implementation() {
 	if (CrownComponent) {
 		CrownComponent->DestroyComponent();
+	}
+}
+
+void AVortexCharacter::SetTeamColor(ETeam Team) {
+	if (GetMesh() == nullptr || OriginalMaterial == nullptr) return;
+	switch (Team) {
+	case ETeam::ET_NoTeam:
+		GetMesh()->SetMaterial(0, OriginalMaterial);
+		DissolveMaterialInstance = BlueDissolveMatInstance;
+		break;
+	case ETeam::ET_BlueTeam:
+		GetMesh()->SetMaterial(0, BlueMaterial);
+		DissolveMaterialInstance = BlueDissolveMatInstance;
+		break;
+	case ETeam::ET_RedTeam:
+		GetMesh()->SetMaterial(0, RedMaterial);
+		DissolveMaterialInstance = RedDissolveMatInstance;
+		break;
 	}
 }
 
@@ -639,8 +657,11 @@ void AVortexCharacter::CalculateAO_Pitch() {
 
 void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
                                      AController* InstigatedController, AActor* DamageCauser) {
-	if (bElimmed) return;
 
+	VortexGameMode = VortexGameMode == nullptr ? GetWorld()->GetAuthGameMode<AVortexGameMode>() : VortexGameMode;
+	if (bElimmed || VortexGameMode == nullptr) return;
+	Damage = VortexGameMode->CalculateDamage(InstigatedController, Controller, Damage);
+	
 	float DamageToHealth = Damage;
 	if (Shield > 0.f) {
 		if (Shield >= Damage) {
@@ -656,7 +677,6 @@ void AVortexCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const U
 	UpdateHUDShield();
 	PlayHitReactMontage();
 	if (Health == 0.0f) {
-		AVortexGameMode* VortexGameMode = GetWorld()->GetAuthGameMode<AVortexGameMode>();
 		if (VortexGameMode) {
 			VortexPlayerController = VortexPlayerController == nullptr
 				                         ? Cast<AVortexPlayerController>(Controller)
@@ -755,11 +775,17 @@ void AVortexCharacter::HideCameraIfCharacterClose() {
 		if (Combat && Combat->EquippedWeapon && Combat->EquippedWeapon->GetWeaponMesh()) {
 			Combat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = true;
 		}
+		if (Combat && Combat->SecondaryWeapon && Combat->SecondaryWeapon->GetWeaponMesh()) {
+			Combat->SecondaryWeapon->GetWeaponMesh()->bOwnerNoSee = true;
+		}
 	}
 	else {
 		GetMesh()->SetVisibility(true);
 		if (Combat && Combat->EquippedWeapon && Combat->EquippedWeapon->GetWeaponMesh()) {
 			Combat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = false;
+		}
+		if (Combat && Combat->SecondaryWeapon && Combat->SecondaryWeapon->GetWeaponMesh()) {
+			Combat->SecondaryWeapon->GetWeaponMesh()->bOwnerNoSee = false;
 		}
 	}
 }
@@ -812,10 +838,13 @@ void AVortexCharacter::PollInit() {
 		if (VortexPlayerState) {
 			VortexPlayerState->AddToScore(0.f);
 			VortexPlayerState->AddToDefeats(0);
-		}
-		AVortexGameState* VortexGameState = Cast<AVortexGameState>(UGameplayStatics::GetGameState(this));
-		if (VortexGameState && VortexGameState->TopScoringPlayers.Contains(VortexPlayerState)) {
-			MulticastGainedTheLead();
+		
+			SetTeamColor(VortexPlayerState->GetTeam());	
+			
+			AVortexGameState* VortexGameState = Cast<AVortexGameState>(UGameplayStatics::GetGameState(this));
+			if (VortexGameState && VortexGameState->TopScoringPlayers.Contains(VortexPlayerState)) {
+				MulticastGainedTheLead();
+			}
 		}
 	}
 }

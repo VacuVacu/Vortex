@@ -49,9 +49,13 @@ void AVortexGameMode::OnMatchStateSet() {
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It) {
 		AVortexPlayerController* VortexPlayer = Cast<AVortexPlayerController>(*It);
 		if (VortexPlayer) {
-			VortexPlayer->OnMatchStateSet(MatchState);
+			VortexPlayer->OnMatchStateSet(MatchState, bTeamsMatch);
 		}
 	}
+}
+
+float AVortexGameMode::CalculateDamage(AController* Attacker, AController* Victim, float BaseDamage) {
+	return BaseDamage;
 }
 
 void AVortexGameMode::PlayerEliminated(AVortexCharacter* ElimmedCharacter, AVortexPlayerController* VictimController,
@@ -121,4 +125,6 @@ void AVortexGameMode::PlayerLeftGame(AVortexPlayerState* PlayerLeaving) {
 		CharacterLeaving->Elim(true);
 	}
 }
+
+
 

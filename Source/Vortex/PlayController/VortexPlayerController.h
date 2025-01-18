@@ -6,6 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "VortexPlayerController.generated.h"
 
+class AVortexGameState;
+class AVortexPlayerState;
 class UReturnToMainMenu;
 class UInputAction;
 class UInputMappingContext;
@@ -33,9 +35,14 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float GetServerTime();
 	virtual void ReceivedPlayer() override;
-	void OnMatchStateSet(FName State);
+	void OnMatchStateSet(FName State, bool bTeamsMatch=false);
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-	void HandleMatchHasStarted();
+	void HideTeamScores();
+	void InitTeamScores();
+	void SetHUDRedTeamScore(int32 RedTeamScore);
+	void SetHUDBlueTeamScore(int32 BlueTeamScore);
+
+	void HandleMatchHasStarted(bool bTeamsMatch = false);
 	void HandleCooldown();
 
 	float SingleTripTime = 0.0f;
@@ -83,6 +90,14 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void ClientElimAnnouncement(APlayerState* Attacker, APlayerState* Victim);
 
+	UPROPERTY(ReplicatedUsing=OnRep_ShowTeamScores)
+	bool bShowTeamScores = false;
+	UFUNCTION()
+	void OnRep_ShowTeamScores();
+
+	FString GetInfoText(const TArray<AVortexPlayerState*>& Players);
+	FString GetTeamsInfoText(AVortexGameState* VortexGameState);
+	
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* ControllerMappingContext;
@@ -148,3 +163,5 @@ private:
 	UPROPERTY(EditAnywhere)
 	float HighPingThreshold = 50.f;
 };
+
+

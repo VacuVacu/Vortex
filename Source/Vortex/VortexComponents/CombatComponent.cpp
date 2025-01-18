@@ -54,8 +54,8 @@ void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip) {
 void UCombatComponent::SwapWeapons() {
 	if (CombatState != ECombatState::ECS_Unoccupied || Character == nullptr) return;
 	Character->PlaySwapMontage();
-	Character->bFinsihedSwapping = false;
 	CombatState = ECombatState::ECS_SwappingWeapons;
+	Character->bFinsihedSwapping = false;
 	if (SecondaryWeapon) SecondaryWeapon->EnableCustomDepth(false);
 }
 
@@ -63,9 +63,9 @@ void UCombatComponent::EquipPrimaryWeapon(AWeapon* WeaponToEquip) {
 	if (WeaponToEquip == nullptr) return;
 	DropEquippedWeapon();
 	EquippedWeapon = WeaponToEquip;
-	EquippedWeapon->SetOwner(Character);
 	EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
 	AttachActorToRightHand(EquippedWeapon);
+	EquippedWeapon->SetOwner(Character);
 	EquippedWeapon->SetHUDAmmo();
 	UpdateCarriedAmmo();
 	PlayEquipWeaponSound(WeaponToEquip);
@@ -75,10 +75,10 @@ void UCombatComponent::EquipPrimaryWeapon(AWeapon* WeaponToEquip) {
 void UCombatComponent::EquipSecondaryWeapon(AWeapon* WeaponToEquip) {
 	if (WeaponToEquip == nullptr) return;
 	SecondaryWeapon = WeaponToEquip;
-	SecondaryWeapon->SetOwner(Character);
 	SecondaryWeapon->SetWeaponState(EWeaponState::EWS_EquippedSecondary);
 	AttachActorToBackpack(WeaponToEquip);
 	PlayEquipWeaponSound(WeaponToEquip);
+	SecondaryWeapon->SetOwner(Character);
 }
 
 void UCombatComponent::OnRep_Aiming() {
@@ -263,6 +263,7 @@ void UCombatComponent::FinishSwap() {
 }
 
 void UCombatComponent::FinishSwapAttachWeapons() {
+	if (Character == nullptr || !Character->HasAuthority()) return;
 	AWeapon* TempWeapon = EquippedWeapon;
 	EquippedWeapon = SecondaryWeapon;
 	SecondaryWeapon = TempWeapon;

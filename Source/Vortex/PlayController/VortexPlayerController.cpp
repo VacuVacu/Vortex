@@ -20,6 +20,7 @@
 #include "Vortex/HUD/ReturnToMainMenu.h"
 #include "Vortex/PlayerState/VortexPlayerState.h"
 #include "Vortex/VortexComponents/CombatComponent.h"
+#include "Vortex/VortexTypes/Announcement.h"
 
 
 void AVortexPlayerController::BeginPlay() {
@@ -31,6 +32,55 @@ void AVortexPlayerController::BeginPlay() {
 void AVortexPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AVortexPlayerController, MatchState);
+	DOREPLIFETIME(AVortexPlayerController, bShowTeamScores);
+}
+
+void AVortexPlayerController::HideTeamScores() {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->RedTeamScore &&
+		VortexHUD->CharacterOverlay->BlueTeamScore &&
+		VortexHUD->CharacterOverlay->ScoreSpacerText;
+	if (bHUDValid) {
+		VortexHUD->CharacterOverlay->RedTeamScore->SetText(FText());
+		VortexHUD->CharacterOverlay->BlueTeamScore->SetText(FText());
+		VortexHUD->CharacterOverlay->ScoreSpacerText->SetText(FText());
+	}
+}
+
+void AVortexPlayerController::InitTeamScores() {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->RedTeamScore &&
+		VortexHUD->CharacterOverlay->BlueTeamScore &&
+		VortexHUD->CharacterOverlay->ScoreSpacerText;
+	if (bHUDValid) {
+		FString Zero("0");
+		FString Spacer(":");
+		VortexHUD->CharacterOverlay->RedTeamScore->SetText(FText::FromString(Zero));
+		VortexHUD->CharacterOverlay->BlueTeamScore->SetText(FText::FromString(Zero));
+		VortexHUD->CharacterOverlay->ScoreSpacerText->SetText(FText::FromString(Spacer));
+	}
+}
+
+void AVortexPlayerController::SetHUDRedTeamScore(int32 RedTeamScore) {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->RedTeamScore;
+	if (bHUDValid) {
+		FString ScoreText = FString::Printf(TEXT("%d"), RedTeamScore);
+		VortexHUD->CharacterOverlay->RedTeamScore->SetText(FText::FromString(ScoreText));
+	}
+}
+
+void AVortexPlayerController::SetHUDBlueTeamScore(int32 BlueTeamScore) {
+	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
+	bool bHUDValid = VortexHUD && VortexHUD->CharacterOverlay &&
+		VortexHUD->CharacterOverlay->BlueTeamScore;
+	if (bHUDValid) {
+		FString ScoreText = FString::Printf(TEXT("%d"), BlueTeamScore);
+		VortexHUD->CharacterOverlay->BlueTeamScore->SetText(FText::FromString(ScoreText));
+	}
 }
 
 void AVortexPlayerController::ServerCheckMatchState_Implementation() {
@@ -141,6 +191,14 @@ void AVortexPlayerController::ShowReturnToMainMenu() {
 		}else {
 			ReturnToMainMenu->MenuTearDown();
 		}
+	}
+}
+
+void AVortexPlayerController::OnRep_ShowTeamScores() {
+	if (bShowTeamScores) {
+		InitTeamScores();
+	}else {
+		HideTeamScores();
 	}
 }
 
@@ -387,10 +445,11 @@ void AVortexPlayerController::ReceivedPlayer() {
 	}
 }
 
-void AVortexPlayerController::OnMatchStateSet(FName State) {
+void AVortexPlayerController::OnMatchStateSet(FName State, bool bTeamsMatch) {
 	MatchState = State;
 	if (MatchState ==  MatchState::InProgress) {
-		HandleMatchHasStarted();
+		HandleMatchHasStarted(bTeamsMatch);
+		
 	}
 	else if (MatchState == MatchState::Cooldown) {
 		HandleCooldown();
@@ -406,7 +465,8 @@ void AVortexPlayerController::OnRep_MatchState() {
 	}
 }
 
-void AVortexPlayerController::HandleMatchHasStarted() {
+void AVortexPlayerController::HandleMatchHasStarted(bool bTeamsMatch) {
+	if (HasAuthority()) bShowTeamScores = bTeamsMatch;
 	VortexHUD = VortexHUD == nullptr ? Cast<AVortexHUD>(GetHUD()) : VortexHUD;
 	if (VortexHUD) {
 		if (VortexHUD->CharacterOverlay==nullptr) {
@@ -414,6 +474,12 @@ void AVortexPlayerController::HandleMatchHasStarted() {
 		}
 		if (VortexHUD->Announcement) {
 			VortexHUD->Announcement->SetVisibility(ESlateVisibility::Hidden);
+		}
+		if (!HasAuthority()) return;
+		if (bTeamsMatch) {
+			InitTeamScores();
+		}else {
+			HideTeamScores();
 		}
 	}
 }
@@ -426,26 +492,15 @@ void AVortexPlayerController::HandleCooldown() {
 			&& VortexHUD->Announcement->InfoText;
 		if (bHUDValid) {
 			VortexHUD->Announcement->SetVisibility(ESlateVisibility::Visible);
-			FString AnnouncementText("New Match Starts In:");
+			FString AnnouncementText = Announcement::NewMatchStartsIn;
 			VortexHUD->Announcement->AnnouncementText->SetText(FText::FromString(AnnouncementText));
 
 			AVortexGameState* VortexGameState = Cast<AVortexGameState>(UGameplayStatics::GetGameState(this));
 			AVortexPlayerState* VortexPlayerState = GetPlayerState<AVortexPlayerState>();
 			if (VortexGameState && VortexPlayerState) {
 				TArray<AVortexPlayerState*> TopPlayers = VortexGameState->TopScoringPlayers;
-				FString InfoTextString;
-				if (TopPlayers.IsEmpty()) {
-					InfoTextString = FString("There is no winner.");
-				}else if (TopPlayers.Num() == 1 && TopPlayers[0] == VortexPlayerState) {
-					InfoTextString = FString("You are the winner!");
-				}else if (TopPlayers.Num() == 1) {
-					InfoTextString = FString::Printf(TEXT("Winner: \n%s"),*TopPlayers[0]->GetPlayerName());
-				}else if (TopPlayers.Num() > 1) {
-					InfoTextString =  FString("Player tied for the winner:");
-					for (auto TiedPlayer : TopPlayers) {
-						InfoTextString.Append(FString::Printf(TEXT("\n%s"), *TiedPlayer->GetPlayerName()));
-					}
-				}
+				FString InfoTextString = bShowTeamScores ? GetTeamsInfoText(VortexGameState) : GetInfoText(TopPlayers);
+				
 				VortexHUD->Announcement->InfoText->SetText(FText::FromString(InfoTextString));
 			}
 		}
@@ -455,4 +510,53 @@ void AVortexPlayerController::HandleCooldown() {
 		VortexCharacter->bDisableGameplay = true;
 		VortexCharacter->GetCombat()->FireButtonPressed(false);
 	}
+}
+
+FString AVortexPlayerController::GetInfoText(const TArray<AVortexPlayerState*>& Players) {
+	AVortexPlayerState* VortexPlayerState = GetPlayerState<AVortexPlayerState>();
+	if (VortexPlayerState == nullptr) return {};
+	FString InfoTextString;
+	if (Players.IsEmpty()) {
+		InfoTextString = Announcement::ThereIsNoWinner;
+	}else if (Players.Num() == 1 && Players[0] == VortexPlayerState) {
+		InfoTextString = Announcement::YouAreTheWinner;
+	}else if (Players.Num() == 1) {
+		InfoTextString = FString::Printf(TEXT("Winner: \n%s"),*Players[0]->GetPlayerName());
+	}else if (Players.Num() > 1) {
+		InfoTextString =  Announcement::PlayersTiedForWin;
+		InfoTextString.Append(FString("\n"));
+		for (auto TiedPlayer : Players) {
+			InfoTextString.Append(FString::Printf(TEXT("\n%s"), *TiedPlayer->GetPlayerName()));
+		}
+	}
+	return InfoTextString;
+}
+
+FString AVortexPlayerController::GetTeamsInfoText(AVortexGameState* VortexGameState) {
+	if (VortexGameState == nullptr) return {};
+	FString InfoTextString;
+	const int32 RedTeamScore = VortexGameState->RedTeamScore;
+	const int32 BlueTeamScore = VortexGameState->BlueTeamScore;
+
+	if (RedTeamScore == 0 && BlueTeamScore == 0) {
+		InfoTextString = Announcement::ThereIsNoWinner;
+	}else if (RedTeamScore == BlueTeamScore) {
+		InfoTextString = FString::Printf(TEXT("%s\n"), *Announcement::TeamsTiedForWin);
+		InfoTextString.Append(Announcement::RedTeam);
+		InfoTextString.Append(TEXT("\n"));
+		InfoTextString.Append(Announcement::BlueTeam);
+		InfoTextString.Append(TEXT("\n"));
+	}else if (RedTeamScore > BlueTeamScore) {
+		InfoTextString = Announcement::RedTeamWins;
+		InfoTextString.Append(TEXT("\n"));
+		InfoTextString.Append(FString::Printf(TEXT("%s: %d\n"), *Announcement::RedTeam, RedTeamScore));
+		InfoTextString.Append(FString::Printf(TEXT("%s: %d\n"), *Announcement::BlueTeam, BlueTeamScore));
+	}else if (BlueTeamScore > RedTeamScore) {
+		InfoTextString = Announcement::BlueTeamWins;
+		InfoTextString.Append(TEXT("\n"));
+		InfoTextString.Append(FString::Printf(TEXT("%s: %d\n"), *Announcement::BlueTeam, BlueTeamScore));
+		InfoTextString.Append(FString::Printf(TEXT("%s: %d\n"), *Announcement::RedTeam, RedTeamScore));
+	}
+	
+	return InfoTextString;
 }
