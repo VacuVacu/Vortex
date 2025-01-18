@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "WeaponTypes.h"
 #include "Net/UnrealNetwork.h"
+#include "Vortex/VortexTypes/Team.h"
 #include "Weapon.generated.h"
 
 class AVortexPlayerController;
@@ -45,7 +46,7 @@ public:
 	void SetHUDAmmo();
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Fire(const FVector& HitTarget);
-	void Dropped();
+	virtual void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
 	FVector TraceEndWithScatter(const FVector& HitTarget);
 
@@ -173,6 +174,9 @@ private:
 	UFUNCTION()
 	void OnPingTooHigh(bool bPingTooHigh);
 
+	UPROPERTY(EditAnywhere)
+	ETeam Team;
+
 public:
 	void SetWeaponState(EWeaponState State);
 	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
@@ -184,6 +188,8 @@ public:
 	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
 	FORCEINLINE float GetDamage() const { return Damage; }
 	FORCEINLINE float GetHeadShotDamage() const { return HeadShotDamage; }
+	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }
+	FORCEINLINE ETeam GetTeam() const { return Team; }
 	bool IsEmpty();
 	bool IsFull();
 };

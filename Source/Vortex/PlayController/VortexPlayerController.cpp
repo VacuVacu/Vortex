@@ -113,6 +113,7 @@ void AVortexPlayerController::OnPossess(APawn* InPawn) {
 	AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(InPawn);
 	if (VortexCharacter) {
 		SetHUDHealth(VortexCharacter->GetHealth(), VortexCharacter->GetMaxHealth());
+		SetHUDShield(VortexCharacter->GetShield(), VortexCharacter->GetMaxShield());
 	}
 }
 

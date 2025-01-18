@@ -34,21 +34,31 @@ void UCombatComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty
 	DOREPLIFETIME_CONDITION(UCombatComponent, CarriedAmmo, COND_OwnerOnly);
 	DOREPLIFETIME(UCombatComponent, CombatState);
 	DOREPLIFETIME(UCombatComponent, Grenades);
+	DOREPLIFETIME(UCombatComponent, bHoldingTheFlag);
+	DOREPLIFETIME(UCombatComponent, TheFlag);
 }
 
 void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip) {
-	if (Character == nullptr || WeaponToEquip == nullptr) {
-		return;
-	}
+	if (Character == nullptr || WeaponToEquip == nullptr) return;
 	if (CombatState != ECombatState::ECS_Unoccupied) return;
-	if (EquippedWeapon != nullptr && SecondaryWeapon == nullptr) {
-		EquipSecondaryWeapon(WeaponToEquip);
+
+	if (WeaponToEquip->GetWeaponType() == EWeaponType::EWT_Flag) {
+		Character->Crouch();
+		bHoldingTheFlag = true;
+		WeaponToEquip->SetWeaponState(EWeaponState::EWS_Equipped);
+		AttachFlagToLeftHand(WeaponToEquip);
+		WeaponToEquip->SetOwner(Character);
+		TheFlag = WeaponToEquip;
+	}else {
+		if (EquippedWeapon != nullptr && SecondaryWeapon == nullptr) {
+			EquipSecondaryWeapon(WeaponToEquip);
+		}
+		else {
+			EquipPrimaryWeapon(WeaponToEquip);
+		}
+		Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+		Character->bUseControllerRotationYaw = true;
 	}
-	else {
-		EquipPrimaryWeapon(WeaponToEquip);
-	}
-	Character->GetCharacterMovement()->bOrientRotationToMovement = false;
-	Character->bUseControllerRotationYaw = true;
 }
 
 void UCombatComponent::SwapWeapons() {
@@ -100,6 +110,15 @@ void UCombatComponent::AttachActorToRightHand(AActor* ActorToAttach) {
 		HandSocket->AttachActor(ActorToAttach, Character->GetMesh());
 	}
 }
+
+void UCombatComponent::AttachFlagToLeftHand(AWeapon* Flag) {
+	if (Character == nullptr || Character->GetMesh() == nullptr || Flag == nullptr) return;
+	const USkeletalMeshSocket* HandSocket = Character->GetMesh()->GetSocketByName(FName("FlagSocket"));
+	if (HandSocket) {
+		HandSocket->AttachActor(Flag, Character->GetMesh());
+	}
+}
+
 
 void UCombatComponent::AttachActorToLeftHand(AActor* ActorToAttach) {
 	if (Character == nullptr || Character->GetMesh() == nullptr || ActorToAttach == nullptr || EquippedWeapon == nullptr) return;
@@ -692,3 +711,18 @@ void UCombatComponent::SetHUDCorsshairs(float DeltaTime) {
 		}
 	}
 }
+
+void UCombatComponent::OnRep_HoldingTheFlag() {
+	if (bHoldingTheFlag && Character && Character->IsLocallyControlled()) {
+		Character->Crouch();
+	}
+}
+
+void UCombatComponent::OnRep_Flag() {
+	if (TheFlag)
+	{
+		TheFlag->SetWeaponState(EWeaponState::EWS_Equipped);
+		AttachFlagToLeftHand(TheFlag);
+	}
+}
+

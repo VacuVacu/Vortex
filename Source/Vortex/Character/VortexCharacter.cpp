@@ -27,6 +27,7 @@
 #include "Vortex/GameMode/VortexGameMode.h"
 #include "Vortex/GameState/VortexGameState.h"
 #include "Vortex/PlayController/VortexPlayerController.h"
+#include "Vortex/PlayerStart/TeamPlayerStart.h"
 #include "Vortex/PlayerState/VortexPlayerState.h"
 #include "Vortex/VortexComponents/BuffComponent.h"
 #include "Vortex/VortexComponents/LagCompensationComponent.h"
@@ -312,10 +313,9 @@ void AVortexCharacter::MulticastElim_Implementation(bool bPlayerLeftGame) {
 	StartDissolve();
 
 	//disable character movement
-	GetCharacterMovement()->DisableMovement();
-	GetCharacterMovement()->StopMovementImmediately();
 	bDisableGameplay = true;
 	GetCharacterMovement()->DisableMovement();
+	GetCharacterMovement()->StopMovementImmediately();
 	if (Combat) {
 		Combat->FireButtonPressed(false);
 	}
@@ -379,6 +379,36 @@ void AVortexCharacter::DropOrDestroyWeapons() {
 		}
 		if (Combat->SecondaryWeapon) {
 			DropOrDestroyWeapon(Combat->SecondaryWeapon);
+		}
+		if (Combat->TheFlag) {
+			Combat->TheFlag->Dropped();
+		}
+	}
+}
+
+void AVortexCharacter::OnPlayerStateInitialized() {
+	VortexPlayerState->AddToScore(0.f);
+	VortexPlayerState->AddToDefeats(0);
+	SetTeamColor(VortexPlayerState->GetTeam());	
+	SetSpawnPoint();
+}
+
+void AVortexCharacter::SetSpawnPoint() {
+	if (HasAuthority() && VortexPlayerState->GetTeam() != ETeam::ET_NoTeam) {
+		TArray<AActor*> PlayerStarts;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATeamPlayerStart::StaticClass(), PlayerStarts);
+		TArray<ATeamPlayerStart*> TeamPlayerStarts;
+		for (auto Start: PlayerStarts) {
+			ATeamPlayerStart* TeamStart = Cast<ATeamPlayerStart>(Start);
+			if (TeamStart && TeamStart->Team == VortexPlayerState->GetTeam()) {
+				TeamPlayerStarts.Add(TeamStart);
+			}
+		}
+		if (!TeamPlayerStarts.IsEmpty()) {
+			ATeamPlayerStart* ChosenStart = TeamPlayerStarts[FMath::RandRange(0, TeamPlayerStarts.Num() - 1)];
+			SetActorLocationAndRotation(
+				ChosenStart->GetActorLocation(),
+				ChosenStart->GetActorRotation());
 		}
 	}
 }
@@ -470,6 +500,16 @@ void AVortexCharacter::Tick(float DeltaTime) {
 }
 
 void AVortexCharacter::RotateInPlace(float DeltaTime) {
+	if (Combat && Combat->bHoldingTheFlag) {
+		bUseControllerRotationYaw = false;
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		TurningInPlace = ETurningInPlace::ETIP_NotTurning;
+		return;
+	}
+	if (Combat && Combat->EquippedWeapon) {
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		bUseControllerRotationYaw = true;
+	}
 	if (bDisableGameplay) { return; }
 	if (GetLocalRole() > ROLE_SimulatedProxy && IsLocallyControlled()) {
 		bUseControllerRotationRoll = false;
@@ -522,6 +562,7 @@ void AVortexCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 }
 
 void AVortexCharacter::Jump() {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bDisableGameplay) return;
 	if (bIsCrouched) {
 		UnCrouch();
@@ -569,6 +610,7 @@ void AVortexCharacter::Equip(const FInputActionValue& Value) {
 	if (bDisableGameplay) return;
 	bool bEquip = Value.Get<bool>();
 	if (Combat) {
+		if (Combat->bHoldingTheFlag) return;
 		if (Combat->CombatState == ECombatState::ECS_Unoccupied)
 			ServerEquipButtonPressed();
 		
@@ -607,6 +649,7 @@ void AVortexCharacter::ServerEquipButtonPressed_Implementation() {
 }
 
 void AVortexCharacter::Crouching(const FInputActionValue& Value) {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bDisableGameplay) return;
 	if (bIsCrouched) {
 		Super::UnCrouch();
@@ -617,6 +660,7 @@ void AVortexCharacter::Crouching(const FInputActionValue& Value) {
 }
 
 void AVortexCharacter::ReloadButtonPressed(const FInputActionValue& Value) {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bDisableGameplay) return;
 	if (Combat) {
 		Combat->Reload();
@@ -624,6 +668,7 @@ void AVortexCharacter::ReloadButtonPressed(const FInputActionValue& Value) {
 }
 
 void AVortexCharacter::Aim(const FInputActionValue& Value) {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bDisableGameplay) return;
 	bool bAim = Value.Get<bool>();
 	if (Combat) {
@@ -632,6 +677,7 @@ void AVortexCharacter::Aim(const FInputActionValue& Value) {
 }
 
 void AVortexCharacter::Fire(const FInputActionValue& Value) {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bDisableGameplay) return;
 	bool bFire = Value.Get<bool>();
 	if (Combat) {
@@ -641,6 +687,7 @@ void AVortexCharacter::Fire(const FInputActionValue& Value) {
 
 void AVortexCharacter::GrenadeButtonPressed(const FInputActionValue& Value) {
 	if (Combat) {
+		if (Combat->bHoldingTheFlag) return;
 		Combat->ThrowGrenade();
 	}
 }
@@ -836,10 +883,7 @@ void AVortexCharacter::PollInit() {
 	if (VortexPlayerState == nullptr) {
 		VortexPlayerState = GetPlayerState<AVortexPlayerState>();
 		if (VortexPlayerState) {
-			VortexPlayerState->AddToScore(0.f);
-			VortexPlayerState->AddToDefeats(0);
-		
-			SetTeamColor(VortexPlayerState->GetTeam());	
+			OnPlayerStateInitialized();
 			
 			AVortexGameState* VortexGameState = Cast<AVortexGameState>(UGameplayStatics::GetGameState(this));
 			if (VortexGameState && VortexGameState->TopScoringPlayers.Contains(VortexPlayerState)) {
@@ -903,6 +947,22 @@ AWeapon* AVortexCharacter::GetEquippedWeapon() {
 FVector AVortexCharacter::GetHitTarget() const {
 	if (Combat == nullptr) return FVector();
 	return Combat->HitTarget;
+}
+
+ETeam AVortexCharacter::GetTeam() {
+	VortexPlayerState = VortexPlayerState == nullptr ? GetPlayerState<AVortexPlayerState>() : VortexPlayerState;
+	if (VortexPlayerState == nullptr) return ETeam::ET_NoTeam;
+	return VortexPlayerState->GetTeam();
+}
+
+void AVortexCharacter::SetHoldingTheFlag(bool bHolding) {
+	if (Combat == nullptr) return;
+	Combat->bHoldingTheFlag = bHolding;
+}
+
+bool AVortexCharacter::IsHoldingTheFlag() const {
+	if (Combat == nullptr) return false;
+	return Combat->bHoldingTheFlag;
 }
 
 bool AVortexCharacter::IsLocallyReloading() {

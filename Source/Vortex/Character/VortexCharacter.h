@@ -116,6 +116,9 @@ protected:
 	void DropOrDestroyWeapon(AWeapon* Weapon);
 	void DropOrDestroyWeapons();
 
+	void SetSpawnPoint();
+	void OnPlayerStateInitialized();
+
 	/*
 	 * hit boxes used for server-side rewind
 	 */
@@ -378,10 +381,13 @@ public:
 	FORCEINLINE float GetMaxShield() const { return MaxShield; }
 	FORCEINLINE void SetShield(float Amount) { Shield = Amount; }
 	FORCEINLINE ULagCompensationComponent* GetLagCompensation() const { return LagCompensation; }
+	FORCEINLINE bool IsHoldingTheFlag() const;
 	bool IsLocallyReloading();
 	ECombatState GetCombatState() const;
 	AWeapon* GetEquippedWeapon();
 	FVector GetHitTarget() const;
+	ETeam GetTeam();
+	void SetHoldingTheFlag(bool bHolding);
 };
 
 

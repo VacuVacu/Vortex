@@ -90,6 +90,8 @@ void AWeapon::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
                               UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
 	AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(OtherActor);
 	if (VortexCharacter && PickupWidget) {
+		if (WeaponType == EWeaponType::EWT_Flag && VortexCharacter->GetTeam() == Team) return;
+		if (VortexCharacter->IsHoldingTheFlag()) return;
 		VortexCharacter->SetOverlappingWeapon(this);
 	}
 }
@@ -98,6 +100,8 @@ void AWeapon::OnSpheraEndOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) {
 	AVortexCharacter* VortexCharacter = Cast<AVortexCharacter>(OtherActor);
 	if (VortexCharacter) {
+		if (WeaponType == EWeaponType::EWT_Flag && VortexCharacter->GetTeam() == Team) return;
+		if (VortexCharacter->IsHoldingTheFlag()) return;
 		VortexCharacter->SetOverlappingWeapon(nullptr);
 	}
 }
