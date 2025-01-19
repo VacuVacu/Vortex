@@ -1,1 +1,3 @@
-A project for UE5 learning 
+### A TPS Game for UE5 learning
+
+This project is based on *Blaster TPS Game*. Include three game mode(free for all, capture flag and team battle)
