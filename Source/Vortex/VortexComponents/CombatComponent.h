@@ -111,6 +111,8 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void FinishSwap();
 
+	bool bSwapped = false;
+	
 	UFUNCTION(BlueprintCallable)
 	void FinishSwapAttachWeapons();
 

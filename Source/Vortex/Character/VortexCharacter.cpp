@@ -623,18 +623,6 @@ void AVortexCharacter::Equip(const FInputActionValue& Value) {
 			Combat->CombatState = ECombatState::ECS_SwappingWeapons;
 			bFinsihedSwapping = false;
 		} 
-		// if (HasAuthority()) {
-		// 	if (OverlappingWeapon) {
-		// 		Combat->EquipWeapon(OverlappingWeapon);
-		// 	}else if (Combat->ShouldSwapWeapons()) {
-		// 		Combat->SwapWeapons();
-		// 		PlaySwapMontage();
-		// 		Combat->CombatState = ECombatState::ECS_SwappingWeapons;
-		// 	}
-		// }
-		// else {
-		// 	ServerEquipButtonPressed();
-		// }
 	}
 }
 

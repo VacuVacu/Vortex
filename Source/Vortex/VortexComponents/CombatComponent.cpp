@@ -73,9 +73,9 @@ void UCombatComponent::EquipPrimaryWeapon(AWeapon* WeaponToEquip) {
 	if (WeaponToEquip == nullptr) return;
 	DropEquippedWeapon();
 	EquippedWeapon = WeaponToEquip;
+	EquippedWeapon->SetOwner(Character);
 	EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
 	AttachActorToRightHand(EquippedWeapon);
-	EquippedWeapon->SetOwner(Character);
 	EquippedWeapon->SetHUDAmmo();
 	UpdateCarriedAmmo();
 	PlayEquipWeaponSound(WeaponToEquip);
@@ -85,10 +85,10 @@ void UCombatComponent::EquipPrimaryWeapon(AWeapon* WeaponToEquip) {
 void UCombatComponent::EquipSecondaryWeapon(AWeapon* WeaponToEquip) {
 	if (WeaponToEquip == nullptr) return;
 	SecondaryWeapon = WeaponToEquip;
+	SecondaryWeapon->SetOwner(Character);
 	SecondaryWeapon->SetWeaponState(EWeaponState::EWS_EquippedSecondary);
 	AttachActorToBackpack(WeaponToEquip);
 	PlayEquipWeaponSound(WeaponToEquip);
-	SecondaryWeapon->SetOwner(Character);
 }
 
 void UCombatComponent::OnRep_Aiming() {
@@ -194,7 +194,7 @@ void UCombatComponent::OnRep_CombatState() {
 		}
 		break;
 	case ECombatState::ECS_SwappingWeapons:
-		if (Character && !Character->IsLocallyControlled()) {
+		if (Character && !Character->IsLocallyControlled() && !Character->HasAuthority()) {
 			Character->PlaySwapMontage();
 		}
 		break;
@@ -283,10 +283,14 @@ void UCombatComponent::FinishSwap() {
 
 void UCombatComponent::FinishSwapAttachWeapons() {
 	if (Character == nullptr || !Character->HasAuthority()) return;
+	if (bSwapped) {
+		bSwapped = false;
+		return;
+	}
 	AWeapon* TempWeapon = EquippedWeapon;
 	EquippedWeapon = SecondaryWeapon;
 	SecondaryWeapon = TempWeapon;
-	
+	bSwapped = true;
 	EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
 	AttachActorToRightHand(EquippedWeapon);
 	EquippedWeapon->SetHUDAmmo();
